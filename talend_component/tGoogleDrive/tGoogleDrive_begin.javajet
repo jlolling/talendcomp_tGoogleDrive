@@ -1,0 +1,260 @@
+<%@ jet 
+	imports="
+		org.talend.core.model.process.INode 
+		org.talend.core.model.process.ElementParameterParser 
+		org.talend.core.model.process.IConnection
+		org.talend.core.model.process.IConnectionCategory
+		org.talend.designer.codegen.config.CodeGeneratorArgument
+		java.util.List
+	" 
+%>
+<% 
+   CodeGeneratorArgument codeGenArgument = (CodeGeneratorArgument) argument;
+   INode node = (INode) codeGenArgument.getArgument();
+   String cid = node.getUniqueName();
+   boolean useServiceAccount = "true".equals(ElementParameterParser.getValue(node, "__USE_SERVICE_ACCOUNT__"));
+   String clientSecretFile = ElementParameterParser.getValue(node, "__CLIENT_SECRET_FILE__");
+   String userEmail = ElementParameterParser.getValue(node, "__USER_ACCOUNT_EMAIL__");
+   String applicationName = ElementParameterParser.getValue(node, "__APPLICATION_NAME__");
+	String accountEmail = ElementParameterParser.getValue(node, "__SERVICE_ACCOUNT_EMAIL__");
+	String keyFile = ElementParameterParser.getValue(node, "__KEY_FILE__");
+	String timeout = ElementParameterParser.getValue(node, "__TIMEOUT_IN_SEC__");
+	String timeOffset = ElementParameterParser.getValue(node, "__TIME_OFFSET__");
+	String keepClient = ElementParameterParser.getValue(node, "__KEEP_CLIENT__");
+	String keepClientName = ElementParameterParser.getValue(node, "__KEEP_CLIENT_KEY__");
+	keepClientName = keepClientName != null && keepClientName.isEmpty() == false ? keepClientName : "\"\"";
+	String mode = ElementParameterParser.getValue(node, "__MODE__");
+	String filterRegex = ElementParameterParser.getValue(node, "__FILE_FILTER_REGEX__");
+	if (filterRegex == null || filterRegex.trim().isEmpty()) {
+		filterRegex = "null";
+	}
+	boolean filterRegexCaseSensitive = "true".equals(ElementParameterParser.getValue(node, "__FILE_FILTER_REGEX_CASE_SENSITIVE__"));
+	String fileId = ElementParameterParser.getValue(node, "__FILE_ID__");
+	boolean ignoreMissing = "true".equals(ElementParameterParser.getValue(node, "__IGNORE_MISSING__"));
+	String fileTitle = ElementParameterParser.getValue(node, "__FILE_TITLE__");
+	if (fileTitle == null || fileTitle.trim().isEmpty()) {
+		fileTitle = "null";
+	}
+	String localUploadFile = ElementParameterParser.getValue(node, "__LOCAL_FILE_TO_UPLOAD__");
+	String localDownloadFile = ElementParameterParser.getValue(node, "__LOCAL_FILE_TO_DOWNLOAD__");
+	boolean createDirs = "true".equals(ElementParameterParser.getValue(node, "__CREATE_LOCAL_DIR_IF_NOT_EXISTS__"));
+	boolean deleteInFs = "true".equals(ElementParameterParser.getValue(node, "__REMOVE_FROM_LOCAL_FS__"));
+	boolean deleteInDrive = "true".equals(ElementParameterParser.getValue(node, "__REMOVE_FROM_DRIVE__"));
+   List<? extends IConnection> connsFiles = node.getOutgoingConnections("FILES");
+   String filesRowName = null;
+   if (connsFiles != null && connsFiles.size() > 0) {
+    	IConnection connTemp = connsFiles.get(0);
+    	if (connTemp.getLineStyle().hasConnectionCategory(IConnectionCategory.DATA)) {
+    		filesRowName = connTemp.getName();
+    	}
+   }
+%>
+    // start creating client
+<% if ("true".equals(keepClient)) {%>
+	de.jlo.talendcomp.gdrive.DriveHelper <%=cid%> = de.jlo.talendcomp.gdrive.DriveHelper.getFromCache(<%=accountEmail%> + <%=keepClientName%> + "<%=cid%>" + jobName);
+	if (<%=cid%> == null) {
+		<%=cid%> = new de.jlo.talendcomp.gdrive.DriveHelper();
+<% } else {%>
+	   de.jlo.talendcomp.gdrive.DriveHelper <%=cid%> = new de.jlo.talendcomp.gdrive.DriveHelper();
+<% }%>
+<% if (applicationName != null && applicationName.trim().isEmpty() == false) {%>
+		<%=cid%>.setApplicationName(<%=applicationName%>);
+<% }%>
+      <%=cid%>.setUseServiceAccount(<%=useServiceAccount%>);
+<%  if (useServiceAccount) { %>
+        // setup credentials with service account
+		<%=cid%>.setAccountEmail(<%=accountEmail%>);
+		<%=cid%>.setKeyFile(<%=keyFile%>);
+<% } else { %>
+		<%=cid%>.setAccountEmail(<%=userEmail%>);
+		<%=cid%>.setClientSecretFile(<%=clientSecretFile%>);
+<% } %> 
+<% if (timeout != null && timeout.trim().isEmpty() == false) {%>
+		<%=cid%>.setTimeoutInSeconds(<%=timeout%>);
+<% }%>
+<% if (timeOffset != null && timeOffset.trim().isEmpty() == false) {%>
+		<%=cid%>.setTimeMillisOffsetToPast(<%=timeOffset%>);
+<% }%>
+		try {
+		    // initialize client with private key
+			<%=cid%>.initializeClient();
+		} catch (Exception e) {
+			globalMap.put("<%=cid%>_ERROR_MESSAGE", e.getMessage());
+			throw e;
+		}
+		globalMap.put("<%=cid%>", <%=cid%>);
+<% if ("true".equals(keepClient)) {%>
+		de.jlo.talendcomp.gdrive.DriveHelper.putIntoCache(<%=accountEmail%> + <%=keepClientName%> + "<%=cid%>" + jobName, <%=cid%>);
+	}
+<% }%>
+   int countFiles_<%=cid%> = 0; 
+<% if ("DELETE".equals(mode)) { %>
+	// delete a file
+   com.google.api.services.drive.model.File file_<%=cid%> = null;
+	try {
+	    System.out.println("Delete file id=" + <%=fileId%>); 
+		file_<%=cid%> = <%=cid%>.delete(<%=fileId%>, <%=ignoreMissing%>);
+		if (file_<%=cid%> != null) {
+			globalMap.put("<%=cid%>_FILE_ID", file_<%=cid%>.getId());
+			globalMap.put("<%=cid%>_FILE_TITLE", file_<%=cid%>.getTitle());
+			if (file_<%=cid%>.getCreatedDate() != null) {
+				globalMap.put("<%=cid%>_FILE_CREATED_AT", new java.util.Date(file_<%=cid%>.getCreatedDate().getValue()));
+			}
+			if (file_<%=cid%>.getModifiedDate() != null) {
+				globalMap.put("<%=cid%>_FILE_MODIFIED_AT", new java.util.Date(file_<%=cid%>.getModifiedDate().getValue()));
+			}
+			globalMap.put("<%=cid%>_FILE_OWNERS", de.jlo.talendcomp.gdrive.DriveHelper.buildChain(file_<%=cid%>.getOwnerNames(), ";"));
+			globalMap.put("<%=cid%>_FILE_SIZE", file_<%=cid%>.getId());
+			globalMap.put("<%=cid%>_FILE_MIME_TYPE", file_<%=cid%>.getMimeType());
+			globalMap.put("<%=cid%>_FILE_IS_FOLDER", de.jlo.talendcomp.gdrive.DriveHelper.isFolder(file_<%=cid%>));
+			globalMap.put("<%=cid%>_FILE_EXISTS", true);
+		} else {
+			globalMap.put("<%=cid%>_FILE_ID", <%=fileId%>);
+			globalMap.put("<%=cid%>_FILE_EXISTS", false);
+		}
+	} catch (Exception e) {
+		globalMap.put("<%=cid%>_ERROR_MESSAGE", e.getMessage());
+		throw e;
+	}
+<% if (filesRowName != null) { %>
+	if (file_<%=cid%> != null) {
+<% } %>	
+<% } else if ("PROPERTIES".equals(mode)) { %>
+	// retrieve file properties
+   com.google.api.services.drive.model.File file_<%=cid%> = null;
+	try {
+	    System.out.println("Get properties from file id=" + <%=fileId%>); 
+		file_<%=cid%> = <%=cid%>.get(<%=fileId%>);
+		if (file_<%=cid%> != null) {
+			globalMap.put("<%=cid%>_FILE_ID", file_<%=cid%>.getId());
+			globalMap.put("<%=cid%>_FILE_TITLE", file_<%=cid%>.getTitle());
+			if (file_<%=cid%>.getCreatedDate() != null) {
+				globalMap.put("<%=cid%>_FILE_CREATED_AT", new java.util.Date(file_<%=cid%>.getCreatedDate().getValue()));
+			}
+			if (file_<%=cid%>.getModifiedDate() != null) {
+				globalMap.put("<%=cid%>_FILE_MODIFIED_AT", new java.util.Date(file_<%=cid%>.getModifiedDate().getValue()));
+			}
+			globalMap.put("<%=cid%>_FILE_OWNERS", de.jlo.talendcomp.gdrive.DriveHelper.buildChain(file_<%=cid%>.getOwnerNames(), ";"));
+			globalMap.put("<%=cid%>_FILE_SIZE", file_<%=cid%>.getId());
+			globalMap.put("<%=cid%>_FILE_MIME_TYPE", file_<%=cid%>.getMimeType());
+			globalMap.put("<%=cid%>_FILE_IS_FOLDER", de.jlo.talendcomp.gdrive.DriveHelper.isFolder(file_<%=cid%>));
+			globalMap.put("<%=cid%>_FILE_EXISTS", true);
+		} else {
+			globalMap.put("<%=cid%>_FILE_ID", <%=fileId%>);
+			globalMap.put("<%=cid%>_FILE_EXISTS", false);
+		}
+	} catch (Exception e) {
+		globalMap.put("<%=cid%>_ERROR_MESSAGE", e.getMessage());
+		throw e;
+	}
+<% if (filesRowName != null) { %>
+	if (file_<%=cid%> != null) {
+<% } %>	
+<% } else if ("UPLOAD".equals(mode)) { %>
+	// upload a file
+   com.google.api.services.drive.model.File file_<%=cid%> = null;
+	try {
+	    System.out.println("Upload file " + <%=localUploadFile%>); 
+		file_<%=cid%> = <%=cid%>.upload(<%=localUploadFile%>, <%=fileTitle%>);
+		globalMap.put("<%=cid%>_FILE_ID", file_<%=cid%>.getId());
+		globalMap.put("<%=cid%>_FILE_TITLE", file_<%=cid%>.getTitle());
+		if (file_<%=cid%>.getCreatedDate() != null) {
+			globalMap.put("<%=cid%>_FILE_CREATED_AT", new java.util.Date(file_<%=cid%>.getCreatedDate().getValue()));
+		}
+		if (file_<%=cid%>.getModifiedDate() != null) {
+			globalMap.put("<%=cid%>_FILE_MODIFIED_AT", new java.util.Date(file_<%=cid%>.getModifiedDate().getValue()));
+		}
+		globalMap.put("<%=cid%>_FILE_OWNERS", de.jlo.talendcomp.gdrive.DriveHelper.buildChain(file_<%=cid%>.getOwnerNames(), ";"));
+		globalMap.put("<%=cid%>_FILE_SIZE", file_<%=cid%>.getId());
+		globalMap.put("<%=cid%>_FILE_MIME_TYPE", file_<%=cid%>.getMimeType());
+		globalMap.put("<%=cid%>_FILE_IS_FOLDER", de.jlo.talendcomp.gdrive.DriveHelper.isFolder(file_<%=cid%>));
+		globalMap.put("<%=cid%>_FILE_EXISTS", true);
+<%  if (deleteInFs) { %>
+        java.io.File f = new java.io.File(<%=localUploadFile%>);
+		System.out.println("Delete local source file " + f.getAbsolutePath());
+		f.delete();
+<%  } %>
+	} catch (Exception e) {
+		globalMap.put("<%=cid%>_ERROR_MESSAGE", e.getMessage());
+		throw e;
+	}
+<% if (filesRowName != null) { %>
+	if (file_<%=cid%> != null) {
+<% } %>	
+<% } else if ("DOWNLOAD".equals(mode)) { %>
+	// download a file
+   com.google.api.services.drive.model.File file_<%=cid%> = null;
+	try {
+	    System.out.println("Upload file id=" + <%=fileId%> + " to " + <%=localDownloadFile%>); 
+		file_<%=cid%> = <%=cid%>.downloadById(<%=fileId%>, <%=localDownloadFile%>, <%=createDirs%>);
+		globalMap.put("<%=cid%>_FILE_ID", file_<%=cid%>.getId());
+		globalMap.put("<%=cid%>_FILE_TITLE", file_<%=cid%>.getTitle());
+		if (file_<%=cid%>.getCreatedDate() != null) {
+			globalMap.put("<%=cid%>_FILE_CREATED_AT", new java.util.Date(file_<%=cid%>.getCreatedDate().getValue()));
+		}
+		if (file_<%=cid%>.getModifiedDate() != null) {
+			globalMap.put("<%=cid%>_FILE_MODIFIED_AT", new java.util.Date(file_<%=cid%>.getModifiedDate().getValue()));
+		}
+		globalMap.put("<%=cid%>_FILE_OWNERS", de.jlo.talendcomp.gdrive.DriveHelper.buildChain(file_<%=cid%>.getOwnerNames(), ";"));
+		globalMap.put("<%=cid%>_FILE_SIZE", file_<%=cid%>.getId());
+		globalMap.put("<%=cid%>_FILE_MIME_TYPE", file_<%=cid%>.getMimeType());
+		globalMap.put("<%=cid%>_FILE_IS_FOLDER", de.jlo.talendcomp.gdrive.DriveHelper.isFolder(file_<%=cid%>));
+<%	if (deleteInDrive) { %>
+        System.out.println("Delete downloaded file id=" + <%=fileId%> + " from drive");
+		<%=cid%>.delete(<%=fileId%>, false);
+<%  } %>
+		globalMap.put("<%=cid%>_FILE_EXISTS", true);
+	} catch (Exception e) {
+		globalMap.put("<%=cid%>_ERROR_MESSAGE", e.getMessage());
+		throw e;
+	}
+<% if (filesRowName != null) { %>
+	if (file_<%=cid%> != null) {
+<% } %>	
+<% } else if ("LIST".equals(mode)) { %>
+	// list files
+	java.util.List<com.google.api.services.drive.model.File> fileList_<%=cid%> = null;
+	try {
+	    System.out.println("List files"); 
+		fileList_<%=cid%> = <%=cid%>.list(<%=filterRegex%>, <%=filterRegexCaseSensitive%>);
+	} catch (Exception e) {
+		globalMap.put("<%=cid%>_ERROR_MESSAGE", e.getMessage());
+		throw e;
+	}
+<% if (filesRowName != null) { %>
+	for (com.google.api.services.drive.model.File file_<%=cid%> : fileList_<%=cid%>) {	
+		globalMap.put("<%=cid%>_FILE_ID", file_<%=cid%>.getId());
+		globalMap.put("<%=cid%>_FILE_TITLE", file_<%=cid%>.getTitle());
+		if (file_<%=cid%>.getCreatedDate() != null) {
+			globalMap.put("<%=cid%>_FILE_CREATED_AT", new java.util.Date(file_<%=cid%>.getCreatedDate().getValue()));
+		}
+		if (file_<%=cid%>.getModifiedDate() != null) {
+			globalMap.put("<%=cid%>_FILE_MODIFIED_AT", new java.util.Date(file_<%=cid%>.getModifiedDate().getValue()));
+		}
+		globalMap.put("<%=cid%>_FILE_OWNERS", de.jlo.talendcomp.gdrive.DriveHelper.buildChain(file_<%=cid%>.getOwnerNames(), ";"));
+		globalMap.put("<%=cid%>_FILE_SIZE", file_<%=cid%>.getId());
+		globalMap.put("<%=cid%>_FILE_MIME_TYPE", file_<%=cid%>.getMimeType());
+		globalMap.put("<%=cid%>_FILE_IS_FOLDER", de.jlo.talendcomp.gdrive.DriveHelper.isFolder(file_<%=cid%>));
+		globalMap.put("<%=cid%>_FILE_EXISTS", true);
+<% } %>	
+<% } %>
+<% if (filesRowName != null) { %>
+	    <%=filesRowName%> = new <%=filesRowName%>Struct();
+		<%=filesRowName%>.FILE_ID = file_<%=cid%>.getId();
+		<%=filesRowName%>.FILE_TITLE = file_<%=cid%>.getTitle();
+		<%=filesRowName%>.ORIGINAL_FILE_NAME = file_<%=cid%>.getOriginalFilename();
+		<%=filesRowName%>.FILE_EXTENSION = file_<%=cid%>.getFileExtension();
+		if (file_<%=cid%>.getCreatedDate() != null) {
+			<%=filesRowName%>.FILE_CREATED_AT = new java.util.Date(file_<%=cid%>.getCreatedDate().getValue());
+		}
+		if (file_<%=cid%>.getModifiedDate() != null) {
+			<%=filesRowName%>.FILE_LAST_MODIFIED_AT = new java.util.Date(file_<%=cid%>.getModifiedDate().getValue());
+		}
+		<%=filesRowName%>.FILE_MIME_TYPE = file_<%=cid%>.getMimeType();
+		<%=filesRowName%>.FILE_DOWNLOAD_URL = file_<%=cid%>.getDownloadUrl();
+		<%=filesRowName%>.FILE_WEB_CONTENT_LINK = file_<%=cid%>.getWebContentLink();
+		<%=filesRowName%>.FILE_SIZE = file_<%=cid%>.getFileSize();
+		<%=filesRowName%>.FILE_OWNERS = de.jlo.talendcomp.gdrive.DriveHelper.buildChain(file_<%=cid%>.getOwnerNames(), ";");
+		<%=filesRowName%>.FILE_IS_FOLDER = de.jlo.talendcomp.gdrive.DriveHelper.isFolder(file_<%=cid%>);
+<% } %>	
+	
