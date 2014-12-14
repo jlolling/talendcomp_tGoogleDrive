@@ -10,8 +10,10 @@ import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.OutputStream;
 import java.io.Reader;
+import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -42,6 +44,7 @@ import com.google.api.client.util.store.FileDataStoreFactory;
 import com.google.api.services.drive.Drive;
 import com.google.api.services.drive.DriveScopes;
 import com.google.api.services.drive.model.FileList;
+import com.google.api.services.drive.model.ParentReference;
 
 public class DriveHelper {
 	
@@ -59,7 +62,7 @@ public class DriveHelper {
 	private int timeoutInSeconds = 120;
 	private boolean useDirectUpload = true;
 	private boolean useDirectDownload = true;
-	private static Map<String, String> mimeTypeMap = new HashMap<String, String>();
+	private static Map<String, String> mimeTypeMap = null;
 	public static final String FOLDER_MIME_TYPE = "application/vnd.google-apps.folder";
 	
 	public static void putIntoCache(String key, DriveHelper client) {
@@ -197,7 +200,110 @@ public class DriveHelper {
 	     		.build();
 	}
 	
-	public com.google.api.services.drive.model.File upload(String localFilePath, String title) throws Exception {
+//	private void removeAllParentFolders(com.google.api.services.drive.model.File file) throws Exception {
+//		if (file.getParents() != null) {
+//			for (ParentReference pr : file.getParents()) {
+//				driveService.parents().delete(file.getId(), pr.getId());
+//			}
+//		}
+//	}
+//	
+//	private com.google.api.services.drive.model.ParentReference insertFileIntoFolder(String folderId, String fileId) throws Exception {
+//		ParentReference newParent = new ParentReference();
+//		newParent.setId(folderId);
+//		return driveService.parents().insert(fileId, newParent).execute();
+//	}
+	
+	public com.google.api.services.drive.model.File getFolder(String path, boolean createIfNotExists) throws Exception {
+		List<com.google.api.services.drive.model.File> allFolders = listAllFolders();
+		List<String> pathList = new ArrayList<String>();
+		StringTokenizer st = new StringTokenizer(path, "/");
+		while (st.hasMoreTokens()) {
+			String f = st.nextToken();
+			if (f.isEmpty() == false) {
+				pathList.add(f);
+			}
+		}
+		return getFolder(allFolders, null, pathList, 0, createIfNotExists);
+	}
+	
+	private com.google.api.services.drive.model.File getFolder(
+			List<com.google.api.services.drive.model.File> allFolders, 
+			com.google.api.services.drive.model.File parent, 
+			List<String> pathArray, 
+			int level, 
+			boolean createIfNotExists) throws Exception {
+		com.google.api.services.drive.model.File child = null;
+		String currentFolderName = pathArray.get(level);
+		List<com.google.api.services.drive.model.File> childFolders = getChildFolders(allFolders, (parent != null ? parent.getId() : null));
+		for (com.google.api.services.drive.model.File folder : childFolders) {
+			if (currentFolderName.equalsIgnoreCase(folder.getTitle())) {
+				child = folder;
+				break;
+			}
+		}
+		if (createIfNotExists && child == null) {
+			// we have to create it
+			child = createFolder((parent != null ? parent.getId() : null), currentFolderName);
+			allFolders.add(child);
+		}
+		// check if we are at the end of the path array
+		if (child != null) {
+			if (level < pathArray.size() - 1) {
+				// we have to continue to follow the path to the end
+				child = getFolder(
+						allFolders,
+						child,
+						pathArray,
+						level + 1,
+						createIfNotExists);
+			}
+		}
+		return child;
+	}
+	
+	private List<com.google.api.services.drive.model.File> getChildFolders(List<com.google.api.services.drive.model.File> allFolders, String parentId) {
+		List<com.google.api.services.drive.model.File> children = new ArrayList<com.google.api.services.drive.model.File>();
+		for (com.google.api.services.drive.model.File folder : allFolders) {
+			if (folder.getParents() != null) {
+				for (ParentReference pr : folder.getParents()) {
+					if (parentId != null) {
+						if (pr.getId().equals(parentId)) {
+							children.add(folder);
+							break;
+						}
+					} else if (pr.getIsRoot()) {
+						children.add(folder);
+						break;
+					}
+				}
+			} else if (parentId == null) {
+				children.add(folder);
+			}
+		}
+		return children;
+	}
+	
+	private com.google.api.services.drive.model.File createFolder(String parentId, String title) throws Exception {
+		com.google.api.services.drive.model.File folder = new com.google.api.services.drive.model.File();
+		folder.setTitle(title);
+		folder.setMimeType(FOLDER_MIME_TYPE);
+		if (parentId != null) {
+			ParentReference pr = new ParentReference();
+			pr.setId(parentId);
+			List<ParentReference> parents = new ArrayList<ParentReference>();
+			parents.add(pr);
+			folder.setParents(parents);
+		}
+		return driveService.files().insert(folder).execute();
+	}
+		
+	public com.google.api.services.drive.model.File upload(String localFilePath, String title, String parentPath, boolean createDirIfNecessary) throws Exception {
+		String parentId = null;
+		if (parentPath != null && parentPath.trim().isEmpty() == false) {
+			com.google.api.services.drive.model.File parentFolder = getFolder(parentPath, createDirIfNecessary);
+			parentId = parentFolder.getId();
+		}
 		File localFile = new File(localFilePath);
 		if (localFile.canRead() == false) {
 			throw new Exception("Local upload file: " + localFile.getAbsolutePath() + " cannot be read.");
@@ -207,6 +313,13 @@ public class DriveHelper {
 		    fileMetadata.setTitle(title);
 		} else {
 		    fileMetadata.setTitle(localFile.getName());
+		}
+		if (parentId != null) {
+			ParentReference pr = new ParentReference();
+			pr.setId(parentId);
+			List<ParentReference> parents = new ArrayList<ParentReference>();
+			parents.add(pr);
+			fileMetadata.setParents(parents);
 		}
 	    String mimeType = getMimeType(localFilePath);
 	    FileContent mediaContent = new FileContent(mimeType, localFile);
@@ -304,24 +417,122 @@ public class DriveHelper {
 		}
 	}
 	
+	private List<com.google.api.services.drive.model.File> listAllFolders() throws Exception {
+		com.google.api.services.drive.Drive.Files.List request = driveService
+				.files()
+				.list();
+		request.setQ("mimeType = '" + FOLDER_MIME_TYPE + "'");
+		return executeRequest(request, null);
+	}
+	
 	/**
 	 * Lists all files from the owner = accountEmail
 	 * @return a list of File
 	 * @throws Exception
 	 */
-	public List<com.google.api.services.drive.model.File> list(String regex, boolean caseSensitive) throws Exception {
+	public List<com.google.api.services.drive.model.File> list(
+			String localFilterRegex, 
+			boolean caseSensitive, 
+			String qString, 
+			String remoteFilter_titleStartsWith, 
+			String remoteFilter_fullTextContains, 
+			Date lastModifyedFrom, 
+			Date lastModifyedUntil, 
+			String owner, 
+			boolean includeFolders,
+			String parentFolder) throws Exception {
+		// prepare the local filter
 		Pattern pattern = null;
-		if (regex != null && regex.trim().isEmpty() == false) {
-			pattern = Pattern.compile(regex, caseSensitive ? 0 : Pattern.CASE_INSENSITIVE);
+		if (localFilterRegex != null && localFilterRegex.trim().isEmpty() == false) {
+			pattern = Pattern.compile(localFilterRegex, caseSensitive ? 0 : Pattern.CASE_INSENSITIVE);
 		}
-		List<com.google.api.services.drive.model.File> resultList = new ArrayList<com.google.api.services.drive.model.File>();
+		StringBuilder q = new StringBuilder();
+		if (qString != null && qString.trim().isEmpty() == false) {
+			q.append(qString);
+		}
+		if (owner != null && owner.trim().isEmpty() == false) {
+			if (q.length() > 0) {
+				q.append(" and ");
+			}
+			q.append("'");
+			q.append(owner.trim());
+			q.append("' in owners");
+		}
+		if (remoteFilter_titleStartsWith != null && remoteFilter_titleStartsWith.trim().isEmpty() == false) {
+			if (q.length() > 0) {
+				q.append(" and ");
+			}
+			q.append("title contains '");
+			q.append(remoteFilter_titleStartsWith.trim());
+			q.append("'");
+		}
+		if (remoteFilter_fullTextContains != null && remoteFilter_fullTextContains.trim().isEmpty() == false) {
+			remoteFilter_fullTextContains = remoteFilter_fullTextContains.replace("\\", "\\\\");
+			if (q.length() > 0) {
+				q.append(" and ");
+			}
+			q.append("fullText contains '");
+			q.append(remoteFilter_titleStartsWith);
+			q.append("'");
+		}
+		SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss");
+		if (lastModifyedFrom != null) {
+			if (q.length() > 0) {
+				q.append(" and ");
+			}
+			q.append("modifiedDate >= '");
+			q.append(sdf.format(lastModifyedFrom));
+			q.append("'");
+		}
+		if (lastModifyedUntil != null) {
+			if (q.length() > 0) {
+				q.append(" and ");
+			}
+			q.append("modifiedDate < '");
+			q.append(sdf.format(lastModifyedUntil));
+			q.append("'");
+		}
+		if (includeFolders == false) {
+			if (q.length() > 0) {
+				q.append(" and ");
+			}
+			q.append("mimeType != '");
+			q.append(FOLDER_MIME_TYPE);
+			q.append("'");
+		}
+		if (parentFolder != null && parentFolder.trim().isEmpty() == false) {
+			String parentId = null;
+			com.google.api.services.drive.model.File parent = getFolder(parentFolder, false);
+			if (parent != null) {
+				parentId = parent.getId();
+			} else {
+				throw new Exception("Parent folder " + parentFolder + " does not exists.");
+			}
+			if (parentId != null) {
+				if (q.length() > 0) {
+					q.append(" and ");
+				}
+				q.append("'");
+				q.append(parentId.trim());
+				q.append("' in parents");
+			}
+		}
 		com.google.api.services.drive.Drive.Files.List request = driveService
 				.files()
 				.list();
+		if (q.length() > 0) {
+			request.setQ(q.toString().trim());
+		}
+		request.setCorpus("DEFAULT");
+		return executeRequest(request, pattern);
+	}
+	
+	private List<com.google.api.services.drive.model.File> executeRequest(com.google.api.services.drive.Drive.Files.List request, Pattern pattern) throws Exception {
+		List<com.google.api.services.drive.model.File> resultList = new ArrayList<com.google.api.services.drive.model.File>();
 		do {
 			try {
 				FileList files = request.execute();
-				if (pattern != null) {
+				if (pattern != null) { // apply the local filter
 					Matcher matcher = null;
 					for (com.google.api.services.drive.model.File file : files.getItems()) {
 						matcher = pattern.matcher(file.getTitle());
@@ -358,7 +569,7 @@ public class DriveHelper {
 	}
 	
 	public static void loadMimeTypes() throws Exception {
-		InputStream in = DriveHelper.class.getResourceAsStream("mime.types");
+		InputStream in = DriveHelper.class.getResourceAsStream("/mime.types");
 		if (in == null) {
 			throw new Exception("Resource mime.types could not be found");
 		}
