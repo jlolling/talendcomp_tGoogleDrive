@@ -15,7 +15,9 @@ public class TestDriveHelper {
 //			testUpload();
 //			testDeleteById();
 //			testGetById();
-			testList();
+//			testCreateFolders();
+//			testList();
+			testLoadMimeTypes();
 		} catch (Exception e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
@@ -55,7 +57,7 @@ public class TestDriveHelper {
 	public static void testList() throws Exception {
 		DriveHelper h = getDriverHelper();
 		System.out.println("List...");
-		for (File f : h.list("csv", false)) {
+		for (File f : h.list(null, false, null, null, null, null, null, null, false, "krieger-it")) {
 			printOut(f);
 		}
 		System.out.println("Done.");
@@ -88,7 +90,7 @@ public class TestDriveHelper {
 	public static void testUpload() throws Exception {
 		DriveHelper h = getDriverHelper();
 		System.out.println("Put...");
-		File f = h.upload("/Volumes/Data/Talend/testdata/ga/drive/2008-02-14-REST--JUG-Berlin.pdf", null);
+		File f = h.upload("/Volumes/Data/Talend/testdata/ga/drive/2008-02-14-REST--JUG-Berlin.pdf", null, null, false);
 		printOut(f);
 		System.out.println("Done.");
 	}
@@ -114,10 +116,22 @@ public class TestDriveHelper {
 	private static void downloadAll() throws Exception {
 		DriveHelper h = getDriverHelper();
 		System.out.println("Get...");
-		for (File f : h.list(null, false)) {
+		for (File f : h.list(null, false, null, null, null, null, null, null, true, null)) {
 			h.downloadById(f.getId(), "/Volumes/Data/Talend/testdata/ga/drive/mobile/" + f.getId() + ".txt", true);
 		}
 		System.out.println("Done.");
+	}
+	
+	private static void testCreateFolders() throws Exception {
+		DriveHelper h = getDriverHelper();
+		System.out.println("Create folders...");
+		String path = "/folder1/folder2/folder3";
+		File dir = h.getFolder(path, true);
+		printOut(dir);
+	}
+	
+	private static void testLoadMimeTypes() throws Exception {
+		DriveHelper.loadMimeTypes();
 	}
 	
 }
