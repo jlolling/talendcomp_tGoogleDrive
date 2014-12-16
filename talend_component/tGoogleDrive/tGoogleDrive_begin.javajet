@@ -207,8 +207,12 @@
 	// download a file
    com.google.api.services.drive.model.File file_<%=cid%> = null;
 	try {
-	    System.out.println("Download file id=" + <%=fileId%> + " to " + <%=localDownloadFile%>); 
+	   globalMap.remove("<%=cid%>_DOWNLOADED_FILEPATH");
+	   globalMap.remove("<%=cid%>_DOWNLOADED_FILESIZE");
+	   System.out.println("Download file id=" + <%=fileId%> + " to " + <%=localDownloadFile%>); 
 		file_<%=cid%> = <%=cid%>.downloadById(<%=fileId%>, <%=localDownloadFile%>, <%=createDirs%>);
+		globalMap.put("<%=cid%>_DOWNLOADED_FILEPATH", <%=cid%>.getLastDownloadedFilePath());
+		globalMap.put("<%=cid%>_DOWNLOADED_FILESIZE", <%=cid%>.getLastDownloadedFileSize());
 		globalMap.put("<%=cid%>_FILE_ID", file_<%=cid%>.getId());
 		globalMap.put("<%=cid%>_FILE_TITLE", file_<%=cid%>.getTitle());
 		if (file_<%=cid%>.getCreatedDate() != null) {
