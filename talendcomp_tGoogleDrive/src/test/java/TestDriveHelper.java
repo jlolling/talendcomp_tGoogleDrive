@@ -12,12 +12,12 @@ public class TestDriveHelper {
 	public static void main(String[] args) {
 		try {
 //			testDownloadById();
-//			testUpload();
+			testUpload();
 //			testDeleteById();
 //			testGetById();
 //			testCreateFolders();
 //			testList();
-			testLoadMimeTypes();
+//			testLoadMimeTypes();
 		} catch (Exception e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
@@ -66,7 +66,9 @@ public class TestDriveHelper {
 	public static void testDownloadById() throws Exception {
 		DriveHelper h = getDriverHelper();
 		System.out.println("Get...");
-		h.downloadById("0B1aeMk_qSLEkY1NtV1BLUDJSS1k", "/Volumes/Data/Talend/testdata/ga/drive/mobile/0B1aeMk_qSLEkY1NtV1BLUDJSS1k.txt", true);
+		String fileId = "0B1aeMk_qSLEkcVhIRlRIN0tfRGM";
+		File f = h.downloadById(fileId, "/Users/jan/Desktop/", true);
+		printOut(f);
 		System.out.println("Done.");
 	}
 	
@@ -100,16 +102,16 @@ public class TestDriveHelper {
 		System.out.println("id=" + f.getId());
 		System.out.println("original file name=" + f.getOriginalFilename());
 		System.out.println("file extension=" + f.getFileExtension());
-		System.out.println("self link=" + f.getSelfLink());
-		System.out.println("web content link=" + f.getWebContentLink());
-		System.out.println("web view link=" + f.getWebViewLink());
+//		System.out.println("self link=" + f.getSelfLink());
+//		System.out.println("web content link=" + f.getWebContentLink());
+//		System.out.println("web view link=" + f.getWebViewLink());
 		System.out.println("created at=" + new java.util.Date(f.getCreatedDate().getValue()));
 		System.out.println("file size=" + f.getFileSize());
-		System.out.println("downloadUrl=" + f.getDownloadUrl());
+//		System.out.println("downloadUrl=" + f.getDownloadUrl());
 		System.out.println("mime.type=" + f.getMimeType());
 		System.out.println("modified at=" + f.getModifiedDate());
 		System.out.println("owner=" + f.getOwnerNames());
-		System.out.println(f.toPrettyString());
+//		System.out.println(f.toPrettyString());
 		System.out.println();
 	}
 	

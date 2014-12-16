@@ -60,10 +60,10 @@ public class DriveHelper {
 	private long timeMillisOffsetToPast = 10000;
 	private Drive driveService;
 	private int timeoutInSeconds = 120;
-	private boolean useDirectUpload = true;
-	private boolean useDirectDownload = true;
 	private static Map<String, String> mimeTypeMap = null;
 	public static final String FOLDER_MIME_TYPE = "application/vnd.google-apps.folder";
+	private String lastDownloadedFilePath = null;
+	private long lastDownloadedFileSize = 0;
 	
 	public static void putIntoCache(String key, DriveHelper client) {
 		clientCache.put(key, client);
@@ -215,6 +215,9 @@ public class DriveHelper {
 //	}
 	
 	public com.google.api.services.drive.model.File getFolder(String path, boolean createIfNotExists) throws Exception {
+		if (path == null || path.trim().isEmpty()) {
+			throw new IllegalArgumentException("path cannot be null or empty.");
+		}
 		List<com.google.api.services.drive.model.File> allFolders = listAllFolders();
 		List<String> pathList = new ArrayList<String>();
 		StringTokenizer st = new StringTokenizer(path, "/");
@@ -304,6 +307,9 @@ public class DriveHelper {
 			com.google.api.services.drive.model.File parentFolder = getFolder(parentPath, createDirIfNecessary);
 			parentId = parentFolder.getId();
 		}
+		if (localFilePath == null || localFilePath.trim().isEmpty()) {
+			throw new IllegalArgumentException("localFilePath cannot be null or empty");
+		}
 		File localFile = new File(localFilePath);
 		if (localFile.canRead() == false) {
 			throw new Exception("Local upload file: " + localFile.getAbsolutePath() + " cannot be read.");
@@ -327,7 +333,7 @@ public class DriveHelper {
 	    		.files()
 	    		.insert(fileMetadata, mediaContent);
 	    MediaHttpUploader uploader = insert.getMediaHttpUploader();
-	    uploader.setDirectUploadEnabled(useDirectUpload);
+	    uploader.setDirectUploadEnabled(false);
 	    uploader.setProgressListener(new MediaHttpUploaderProgressListener() {
 			
 			@Override
@@ -341,6 +347,12 @@ public class DriveHelper {
 	}
 
 	public com.google.api.services.drive.model.File downloadById(String fileId, String localFilePath, boolean createDirs) throws Exception {
+		if (fileId == null || fileId.trim().isEmpty()) {
+			throw new IllegalArgumentException("fileId cannot be null or empty");
+		}
+		if (localFilePath == null || localFilePath.trim().isEmpty()) {
+			throw new IllegalArgumentException("localFilePath cannot be null or empty");
+		}
 		com.google.api.services.drive.model.File file = driveService
 				.files()
 				.get(fileId)
@@ -355,6 +367,9 @@ public class DriveHelper {
 	}
 	
 	public com.google.api.services.drive.model.File delete(String fileId, boolean ignoreMissing) throws Exception {
+		if (fileId == null || fileId.trim().isEmpty()) {
+			throw new IllegalArgumentException("fileId cannot be null or empty");
+		}
 		com.google.api.services.drive.model.File file = get(fileId);
 		if (file != null) {
 			driveService.files()
@@ -371,6 +386,9 @@ public class DriveHelper {
 	}
 	
 	public com.google.api.services.drive.model.File get(String fileId) throws Exception {
+		if (fileId == null || fileId.trim().isEmpty()) {
+			throw new IllegalArgumentException("fileId cannot be null or empty");
+		}
 		try {
 			com.google.api.services.drive.model.File file = driveService
 					.files()
@@ -387,6 +405,8 @@ public class DriveHelper {
 	}
 
 	private void downloadByUrl(String fileDownloadUrl, String localFilePath, boolean createDirs) throws Exception {
+		lastDownloadedFilePath = null;
+		lastDownloadedFileSize = 0;
 		File localFile = new File(localFilePath);
 		if (createDirs && localFile.getParentFile().exists() == false) {
 			if (localFile.getParentFile().mkdirs() == false) {
@@ -398,7 +418,7 @@ public class DriveHelper {
 		    MediaHttpDownloader downloader = new MediaHttpDownloader(
 		    		HTTP_TRANSPORT, 
 		    		driveService.getRequestFactory().getInitializer());
-		    downloader.setDirectDownloadEnabled(useDirectDownload);
+		    downloader.setDirectDownloadEnabled(false);
 		    downloader.setProgressListener(new MediaHttpDownloaderProgressListener() {
 
 				@Override
@@ -409,6 +429,8 @@ public class DriveHelper {
 		    	
 		    });
 		    downloader.download(new GenericUrl(fileDownloadUrl), fileOut);
+		    lastDownloadedFilePath = localFile.getAbsolutePath();
+		    lastDownloadedFileSize = localFile.length();
 		} finally {
 			if (fileOut != null) {
 				fileOut.flush();
@@ -649,6 +671,14 @@ public class DriveHelper {
 
 	public void setTimeoutInSeconds(int timeoutInSeconds) {
 		this.timeoutInSeconds = timeoutInSeconds;
+	}
+
+	public String getLastDownloadedFilePath() {
+		return lastDownloadedFilePath;
+	}
+
+	public long getLastDownloadedFileSize() {
+		return lastDownloadedFileSize;
 	}
 
 }
