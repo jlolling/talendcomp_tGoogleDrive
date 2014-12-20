@@ -57,8 +57,11 @@
 	if (remoteSearchPath == null || remoteSearchPath.trim().isEmpty()) {
 		remoteSearchPath = "null";
 	}
-	
-	String localDownloadFile = ElementParameterParser.getValue(node, "__LOCAL_FILE_TO_DOWNLOAD__");
+	String localFolder = ElementParameterParser.getValue(node, "__LOCAL_TARGET_FOLDER__");
+	String localFileName = ElementParameterParser.getValue(node, "__LOCAL_TARGET_FILENAME__");
+	if (localFileName == null || localFileName.trim().isEmpty()) {
+		localFileName = "null";
+	}
 	boolean createDirs = "true".equals(ElementParameterParser.getValue(node, "__CREATE_LOCAL_DIR_IF_NOT_EXISTS__"));
 	boolean deleteInFs = "true".equals(ElementParameterParser.getValue(node, "__REMOVE_FROM_LOCAL_FS__"));
 	boolean deleteInDrive = "true".equals(ElementParameterParser.getValue(node, "__REMOVE_FROM_DRIVE__"));
@@ -209,8 +212,8 @@
 	try {
 	   globalMap.remove("<%=cid%>_DOWNLOADED_FILEPATH");
 	   globalMap.remove("<%=cid%>_DOWNLOADED_FILESIZE");
-	   System.out.println("Download file id=" + <%=fileId%> + " to " + <%=localDownloadFile%>); 
-		file_<%=cid%> = <%=cid%>.downloadById(<%=fileId%>, <%=localDownloadFile%>, <%=createDirs%>);
+	   System.out.println("Download file id=" + <%=fileId%> + " to " + <%=localFolder%>); 
+		file_<%=cid%> = <%=cid%>.downloadById(<%=fileId%>, <%=localFolder%>, <%=localFileName%>, <%=createDirs%>);
 		globalMap.put("<%=cid%>_DOWNLOADED_FILEPATH", <%=cid%>.getLastDownloadedFilePath());
 		globalMap.put("<%=cid%>_DOWNLOADED_FILESIZE", <%=cid%>.getLastDownloadedFileSize());
 		globalMap.put("<%=cid%>_FILE_ID", file_<%=cid%>.getId());
