@@ -346,22 +346,27 @@ public class DriveHelper {
 	    return insert.execute();
 	}
 
-	public com.google.api.services.drive.model.File downloadById(String fileId, String localFilePath, boolean createDirs) throws Exception {
+	public com.google.api.services.drive.model.File downloadById(String fileId, String localFolder, String newFileName, boolean createDirs) throws Exception {
 		if (fileId == null || fileId.trim().isEmpty()) {
 			throw new IllegalArgumentException("fileId cannot be null or empty");
 		}
-		if (localFilePath == null || localFilePath.trim().isEmpty()) {
-			throw new IllegalArgumentException("localFilePath cannot be null or empty");
+		if (localFolder == null || localFolder.trim().isEmpty()) {
+			throw new IllegalArgumentException("localFolder cannot be null or empty");
+		} else if ((localFolder.endsWith("/") || localFolder.endsWith("\\")) == false) {
+			localFolder = localFolder + "/";
 		}
 		com.google.api.services.drive.model.File file = driveService
 				.files()
 				.get(fileId)
 				.execute();
-		if (new File(localFilePath).isDirectory()) {
-			localFilePath = localFilePath + "/" + file.getTitle();
+		String downLoadFilePath = null;
+		if (newFileName != null && newFileName.trim().isEmpty() == false) {
+			downLoadFilePath = localFolder + newFileName;
+		} else {
+			downLoadFilePath = localFolder + file.getTitle();
 		}
 		if (file.getDownloadUrl() != null) {
-			downloadByUrl(file.getDownloadUrl(), localFilePath, createDirs);
+			downloadByUrl(file.getDownloadUrl(), downLoadFilePath, createDirs);
 		}
 		return file;
 	}
