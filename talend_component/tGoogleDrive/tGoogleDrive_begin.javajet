@@ -12,7 +12,9 @@
    CodeGeneratorArgument codeGenArgument = (CodeGeneratorArgument) argument;
    INode node = (INode) codeGenArgument.getArgument();
    String cid = node.getUniqueName();
-   boolean useServiceAccount = "true".equals(ElementParameterParser.getValue(node, "__USE_SERVICE_ACCOUNT__"));
+   boolean useExistingClient = "true".equals(ElementParameterParser.getValue(node, "__USE_EXISTING_CLIENT__"));
+   String component = ElementParameterParser.getValue(node, "__CLIENT__");
+   boolean useServiceAccount = "SERVICE_ACCOUNT".equals(ElementParameterParser.getValue(node, "__USE_SERVICE_ACCOUNT__"));
    String clientSecretFile = ElementParameterParser.getValue(node, "__CLIENT_SECRET_FILE__");
    String userEmail = ElementParameterParser.getValue(node, "__USER_ACCOUNT_EMAIL__");
    String applicationName = ElementParameterParser.getValue(node, "__APPLICATION_NAME__");
@@ -30,6 +32,7 @@
 	}
 	boolean filterRegexCaseSensitive = "true".equals(ElementParameterParser.getValue(node, "__FILE_FILTER_REGEX_CASE_SENSITIVE__"));
 	String fileId = ElementParameterParser.getValue(node, "__FILE_ID__");
+	String driveFilePath = ElementParameterParser.getValue(node, "__DRIVE_FILE_PATH__");
 	boolean ignoreMissing = "true".equals(ElementParameterParser.getValue(node, "__IGNORE_MISSING__"));
 	String fileTitle = ElementParameterParser.getValue(node, "__FILE_TITLE__");
 	if (fileTitle == null || fileTitle.trim().isEmpty()) {
@@ -57,12 +60,26 @@
 	if (remoteSearchPath == null || remoteSearchPath.trim().isEmpty()) {
 		remoteSearchPath = "null";
 	}
+	String owner = ElementParameterParser.getValue(node, "__OWNER_EMAIL__");
+	if (owner == null || owner.trim().isEmpty()) {
+		owner = "null";
+	}
+	String remoteSearchModifiedFrom = ElementParameterParser.getValue(node, "__REMOTE_FILTER_MODIFYIED_FROM__");
+	if (remoteSearchModifiedFrom == null || remoteSearchModifiedFrom.trim().isEmpty()) {
+		remoteSearchModifiedFrom = "null";
+	}
+	String remoteSearchModifiedTo = ElementParameterParser.getValue(node, "__REMOTE_FILTER_MODIFYIED_TO__");
+	if (remoteSearchModifiedTo == null || remoteSearchModifiedTo.trim().isEmpty()) {
+		remoteSearchModifiedTo = "null";
+	}
+	boolean includeFolderInResult = "true".equals(ElementParameterParser.getValue(node, "__RETURN_FOLDERS_AS_WELL__"));
 	String localFolder = ElementParameterParser.getValue(node, "__LOCAL_TARGET_FOLDER__");
 	String localFileName = ElementParameterParser.getValue(node, "__LOCAL_TARGET_FILENAME__");
 	if (localFileName == null || localFileName.trim().isEmpty()) {
 		localFileName = "null";
 	}
 	boolean createDirs = "true".equals(ElementParameterParser.getValue(node, "__CREATE_LOCAL_DIR_IF_NOT_EXISTS__"));
+	boolean overwrite = "true".equals(ElementParameterParser.getValue(node, "__OVERWRITE__"));
 	boolean deleteInFs = "true".equals(ElementParameterParser.getValue(node, "__REMOVE_FROM_LOCAL_FS__"));
 	boolean deleteInDrive = "true".equals(ElementParameterParser.getValue(node, "__REMOVE_FROM_DRIVE__"));
    List<? extends IConnection> connsFiles = node.getOutgoingConnections("FILES");
@@ -74,7 +91,6 @@
     	}
    }
 %>
-    // start creating client
 <% if ("true".equals(keepClient)) { %>
 	de.jlo.talendcomp.gdrive.DriveHelper <%=cid%> = de.jlo.talendcomp.gdrive.DriveHelper.getFromCache(<%=accountEmail%> + <%=keepClientName%> + "<%=cid%>" + jobName);
 	if (<%=cid%> == null) {
@@ -82,15 +98,15 @@
 <% } else { %>
 	   de.jlo.talendcomp.gdrive.DriveHelper <%=cid%> = new de.jlo.talendcomp.gdrive.DriveHelper();
 <% } %>
-<% if (applicationName != null && applicationName.trim().isEmpty() == false) { %>
-		<%=cid%>.setApplicationName(<%=applicationName%>);
-<% } %>
-      <%=cid%>.setUseServiceAccount(<%=useServiceAccount%>);
+<%  if (useExistingClient == false) { %>
+        // create new drive client
+        <%=cid%>.setUseServiceAccount(<%=useServiceAccount%>);
 <%  if (useServiceAccount) { %>
         // setup credentials with service account
 		<%=cid%>.setAccountEmail(<%=accountEmail%>);
 		<%=cid%>.setKeyFile(<%=keyFile%>);
 <% } else { %>
+        // setup client with client-Id for native applications
 		<%=cid%>.setAccountEmail(<%=userEmail%>);
 		<%=cid%>.setClientSecretFile(<%=clientSecretFile%>);
 <% } %> 
@@ -98,27 +114,45 @@
 		<%=cid%>.setTimeoutInSeconds(<%=timeout%>);
 <% } %>
 <% if (timeOffset != null && timeOffset.trim().isEmpty() == false) { %>
+        // prevent token validation problems caused by time differences between own host and Google
 		<%=cid%>.setTimeMillisOffsetToPast(<%=timeOffset%>);
 <% } %>
+<% if (applicationName != null && applicationName.trim().isEmpty() == false) { %>
+		<%=cid%>.setApplicationName(<%=applicationName%>);
+<% } %>
 		try {
-		    // initialize client with private key
+		    // initialize drive client
 			<%=cid%>.initializeClient();
 		} catch (Exception e) {
 			globalMap.put("<%=cid%>_ERROR_MESSAGE", e.getMessage());
 			throw e;
 		}
 		globalMap.put("<%=cid%>", <%=cid%>);
-<% if ("true".equals(keepClient)) { %>
+		globalMap.put("drive_<%=cid%>", <%=cid%>.getDriveService());
+<%   if ("true".equals(keepClient)) { %>
 		de.jlo.talendcomp.gdrive.DriveHelper.putIntoCache(<%=accountEmail%> + <%=keepClientName%> + "<%=cid%>" + jobName, <%=cid%>);
-	}
-<% } %>
+<%   } %>
+<% } else { // if (useExistingClient == false) %>
+      // use existing drive client
+	  <%=cid%>.setDriveService((com.google.api.services.drive.Drive) globalMap.get("drive_<%=component%>"));
+<% } // if (useExistingClient == false) %>
+   }
    int countFiles_<%=cid%> = 0; 
 <% if ("DELETE".equals(mode)) { %>
 	// delete a file
-   com.google.api.services.drive.model.File file_<%=cid%> = null;
+    com.google.api.services.drive.model.File file_<%=cid%> = null;
 	try {
+<% if (fileId != null && fileId.trim().isEmpty() == false) { %>
 	    System.out.println("Delete file id=" + <%=fileId%>); 
-		file_<%=cid%> = <%=cid%>.delete(<%=fileId%>, <%=ignoreMissing%>);
+	    // delete file in drive by file-Id
+		file_<%=cid%> = <%=cid%>.deleteById(<%=fileId%>, <%=ignoreMissing%>);
+<% } else if (driveFilePath != null && driveFilePath.trim().isEmpty() == false) { %>
+	    System.out.println("Delete file path=" + <%=driveFilePath%>); 
+	    // delete file in drive by file path
+		file_<%=cid%> = <%=cid%>.deleteByName(<%=driveFilePath%>, <%=ignoreMissing%>);
+<% } else { %>
+		throw new Exception("No File-Id or File path provided");
+<% } %>
 		if (file_<%=cid%> != null) {
 			globalMap.put("<%=cid%>_FILE_ID", file_<%=cid%>.getId());
 			globalMap.put("<%=cid%>_FILE_TITLE", file_<%=cid%>.getTitle());
@@ -134,7 +168,6 @@
 			globalMap.put("<%=cid%>_FILE_IS_FOLDER", de.jlo.talendcomp.gdrive.DriveHelper.isFolder(file_<%=cid%>));
 			globalMap.put("<%=cid%>_FILE_EXISTS", true);
 		} else {
-			globalMap.put("<%=cid%>_FILE_ID", <%=fileId%>);
 			globalMap.put("<%=cid%>_FILE_EXISTS", false);
 		}
 	} catch (Exception e) {
@@ -148,8 +181,17 @@
 	// retrieve file properties
    com.google.api.services.drive.model.File file_<%=cid%> = null;
 	try {
+<% if (fileId != null && fileId.trim().isEmpty() == false) { %>
 	    System.out.println("Get properties from file id=" + <%=fileId%>); 
-		file_<%=cid%> = <%=cid%>.get(<%=fileId%>);
+	    // read the file metadata by file-Id
+		file_<%=cid%> = <%=cid%>.getById(<%=fileId%>);
+<% } else if (driveFilePath != null && driveFilePath.trim().isEmpty() == false) { %>
+	    System.out.println("Get properties from file path=" + <%=driveFilePath%>); 
+	    // read the file metadata by the drive file path
+		file_<%=cid%> = <%=cid%>.getByName(<%=driveFilePath%>);
+<% } else { %>
+		throw new Exception("No File-Id or File path provided");
+<% } %>
 		if (file_<%=cid%> != null) {
 			globalMap.put("<%=cid%>_FILE_ID", file_<%=cid%>.getId());
 			globalMap.put("<%=cid%>_FILE_TITLE", file_<%=cid%>.getTitle());
@@ -165,7 +207,6 @@
 			globalMap.put("<%=cid%>_FILE_IS_FOLDER", de.jlo.talendcomp.gdrive.DriveHelper.isFolder(file_<%=cid%>));
 			globalMap.put("<%=cid%>_FILE_EXISTS", true);
 		} else {
-			globalMap.put("<%=cid%>_FILE_ID", <%=fileId%>);
 			globalMap.put("<%=cid%>_FILE_EXISTS", false);
 		}
 	} catch (Exception e) {
@@ -180,20 +221,26 @@
    com.google.api.services.drive.model.File file_<%=cid%> = null;
 	try {
 	    System.out.println("Upload file " + <%=localUploadFile%>); 
-		file_<%=cid%> = <%=cid%>.upload(<%=localUploadFile%>, <%=fileTitle%>, <%=remotePath%>, <%=createRemoteDir%>);
-		globalMap.put("<%=cid%>_FILE_ID", file_<%=cid%>.getId());
-		globalMap.put("<%=cid%>_FILE_TITLE", file_<%=cid%>.getTitle());
-		if (file_<%=cid%>.getCreatedDate() != null) {
-			globalMap.put("<%=cid%>_FILE_CREATED_AT", new java.util.Date(file_<%=cid%>.getCreatedDate().getValue()));
+		file_<%=cid%> = <%=cid%>.upload(
+			<%=localUploadFile%>, // localUploadFile
+			<%=fileTitle%>,       // title
+			<%=remotePath%>,      // remotePath
+			<%=createRemoteDir%>, // createRemoteDir
+			<%=overwrite%>);      // overwrite
+		if (file_<%=cid%> != null) {
+			globalMap.put("<%=cid%>_FILE_ID", file_<%=cid%>.getId());
+			globalMap.put("<%=cid%>_FILE_TITLE", file_<%=cid%>.getTitle());
+			if (file_<%=cid%>.getCreatedDate() != null) {
+				globalMap.put("<%=cid%>_FILE_CREATED_AT", new java.util.Date(file_<%=cid%>.getCreatedDate().getValue()));
+			}
+			if (file_<%=cid%>.getModifiedDate() != null) {
+				globalMap.put("<%=cid%>_FILE_MODIFIED_AT", new java.util.Date(file_<%=cid%>.getModifiedDate().getValue()));
+			}
+			globalMap.put("<%=cid%>_FILE_OWNERS", de.jlo.talendcomp.gdrive.DriveHelper.buildChain(file_<%=cid%>.getOwnerNames(), ";"));
+			globalMap.put("<%=cid%>_FILE_SIZE", file_<%=cid%>.getId());
+			globalMap.put("<%=cid%>_FILE_MIME_TYPE", file_<%=cid%>.getMimeType());
+			globalMap.put("<%=cid%>_FILE_IS_FOLDER", de.jlo.talendcomp.gdrive.DriveHelper.isFolder(file_<%=cid%>));
 		}
-		if (file_<%=cid%>.getModifiedDate() != null) {
-			globalMap.put("<%=cid%>_FILE_MODIFIED_AT", new java.util.Date(file_<%=cid%>.getModifiedDate().getValue()));
-		}
-		globalMap.put("<%=cid%>_FILE_OWNERS", de.jlo.talendcomp.gdrive.DriveHelper.buildChain(file_<%=cid%>.getOwnerNames(), ";"));
-		globalMap.put("<%=cid%>_FILE_SIZE", file_<%=cid%>.getId());
-		globalMap.put("<%=cid%>_FILE_MIME_TYPE", file_<%=cid%>.getMimeType());
-		globalMap.put("<%=cid%>_FILE_IS_FOLDER", de.jlo.talendcomp.gdrive.DriveHelper.isFolder(file_<%=cid%>));
-		globalMap.put("<%=cid%>_FILE_EXISTS", true);
 <%  if (deleteInFs) { %>
         java.io.File f = new java.io.File(<%=localUploadFile%>);
 		System.out.println("Delete local source file " + f.getAbsolutePath());
@@ -210,27 +257,38 @@
 	// download a file
    com.google.api.services.drive.model.File file_<%=cid%> = null;
 	try {
-	   globalMap.remove("<%=cid%>_DOWNLOADED_FILEPATH");
-	   globalMap.remove("<%=cid%>_DOWNLOADED_FILESIZE");
-	   System.out.println("Download file id=" + <%=fileId%> + " to " + <%=localFolder%>); 
+	    globalMap.remove("<%=cid%>_DOWNLOADED_FILEPATH");
+	    globalMap.remove("<%=cid%>_DOWNLOADED_FILESIZE");
+<% if (fileId != null && fileId.trim().isEmpty() == false) { %>
+	    System.out.println("Download file id=" + <%=fileId%> + " to " + <%=localFolder%>); 
+	    // download the drive file by the file-Id
 		file_<%=cid%> = <%=cid%>.downloadById(<%=fileId%>, <%=localFolder%>, <%=localFileName%>, <%=createDirs%>);
-		globalMap.put("<%=cid%>_DOWNLOADED_FILEPATH", <%=cid%>.getLastDownloadedFilePath());
-		globalMap.put("<%=cid%>_DOWNLOADED_FILESIZE", <%=cid%>.getLastDownloadedFileSize());
-		globalMap.put("<%=cid%>_FILE_ID", file_<%=cid%>.getId());
-		globalMap.put("<%=cid%>_FILE_TITLE", file_<%=cid%>.getTitle());
-		if (file_<%=cid%>.getCreatedDate() != null) {
-			globalMap.put("<%=cid%>_FILE_CREATED_AT", new java.util.Date(file_<%=cid%>.getCreatedDate().getValue()));
+<% } else if (driveFilePath != null && driveFilePath.trim().isEmpty() == false) { %>
+	    System.out.println("Get properties from file path=" + <%=driveFilePath%>); 
+	    // download the file by its drive file path
+		file_<%=cid%> = <%=cid%>.downloadByName(<%=driveFilePath%>, <%=localFolder%>, <%=localFileName%>, <%=createDirs%>);
+<% } else { %>
+		throw new Exception("No File-Id or File path provided");
+<% } %>
+		if (file_<%=cid%> != null) {
+			globalMap.put("<%=cid%>_DOWNLOADED_FILEPATH", <%=cid%>.getLastDownloadedFilePath());
+			globalMap.put("<%=cid%>_DOWNLOADED_FILESIZE", <%=cid%>.getLastDownloadedFileSize());
+			globalMap.put("<%=cid%>_FILE_ID", file_<%=cid%>.getId());
+			globalMap.put("<%=cid%>_FILE_TITLE", file_<%=cid%>.getTitle());
+			if (file_<%=cid%>.getCreatedDate() != null) {
+				globalMap.put("<%=cid%>_FILE_CREATED_AT", new java.util.Date(file_<%=cid%>.getCreatedDate().getValue()));
+			}
+			if (file_<%=cid%>.getModifiedDate() != null) {
+				globalMap.put("<%=cid%>_FILE_MODIFIED_AT", new java.util.Date(file_<%=cid%>.getModifiedDate().getValue()));
+			}
+			globalMap.put("<%=cid%>_FILE_OWNERS", de.jlo.talendcomp.gdrive.DriveHelper.buildChain(file_<%=cid%>.getOwnerNames(), ";"));
+			globalMap.put("<%=cid%>_FILE_SIZE", file_<%=cid%>.getId());
+			globalMap.put("<%=cid%>_FILE_MIME_TYPE", file_<%=cid%>.getMimeType());
+			globalMap.put("<%=cid%>_FILE_IS_FOLDER", de.jlo.talendcomp.gdrive.DriveHelper.isFolder(file_<%=cid%>));
 		}
-		if (file_<%=cid%>.getModifiedDate() != null) {
-			globalMap.put("<%=cid%>_FILE_MODIFIED_AT", new java.util.Date(file_<%=cid%>.getModifiedDate().getValue()));
-		}
-		globalMap.put("<%=cid%>_FILE_OWNERS", de.jlo.talendcomp.gdrive.DriveHelper.buildChain(file_<%=cid%>.getOwnerNames(), ";"));
-		globalMap.put("<%=cid%>_FILE_SIZE", file_<%=cid%>.getId());
-		globalMap.put("<%=cid%>_FILE_MIME_TYPE", file_<%=cid%>.getMimeType());
-		globalMap.put("<%=cid%>_FILE_IS_FOLDER", de.jlo.talendcomp.gdrive.DriveHelper.isFolder(file_<%=cid%>));
 <%	if (deleteInDrive) { %>
         System.out.println("Delete downloaded file id=" + <%=fileId%> + " from drive");
-		<%=cid%>.delete(<%=fileId%>, false);
+		<%=cid%>.deleteById(<%=fileId%>, false);
 <% } %>
 		globalMap.put("<%=cid%>_FILE_EXISTS", true);
 	} catch (Exception e) {
@@ -244,8 +302,19 @@
 	// list files
 	java.util.List<com.google.api.services.drive.model.File> fileList_<%=cid%> = null;
 	try {
-	   System.out.println("List files"); 
-		fileList_<%=cid%> = <%=cid%>.list(<%=filterRegex%>, <%=filterRegexCaseSensitive%>, <%=qString%>, <%=titleStartsWith%>, <%=fullTextSearch%>, null, null, null , false, <%=remoteSearchPath%>);
+	    System.out.println("List files"); 
+	    // list the files metadata
+		fileList_<%=cid%> = <%=cid%>.list(
+			<%=filterRegex%>, // filterRegex
+			<%=filterRegexCaseSensitive%>, // filterRegexCaseSensitive 
+			<%=qString%>, // q-string
+			<%=titleStartsWith%>, // titleStartsWith
+			<%=fullTextSearch%>, // fullTextSearch
+			<%=remoteSearchModifiedFrom%>, // remoteSearchModifiedFrom
+			<%=remoteSearchModifiedTo%>, // remoteSearchModifiedTo
+			<%=owner%>, // owner
+			<%=includeFolderInResult%>, // includeFolderInResult
+			<%=remoteSearchPath%>);  // remoteSearchPath
 	} catch (Exception e) {
 		globalMap.put("<%=cid%>_ERROR_MESSAGE", e.getMessage());
 		throw e;
@@ -264,10 +333,9 @@
 		globalMap.put("<%=cid%>_FILE_SIZE", file_<%=cid%>.getId());
 		globalMap.put("<%=cid%>_FILE_MIME_TYPE", file_<%=cid%>.getMimeType());
 		globalMap.put("<%=cid%>_FILE_IS_FOLDER", de.jlo.talendcomp.gdrive.DriveHelper.isFolder(file_<%=cid%>));
-		globalMap.put("<%=cid%>_FILE_EXISTS", true);
 <% } %>	
-<% } %>
-<% if (filesRowName != null) { %>
+<% } // else if ("LIST".equals(mode)) %>
+<% if ("CLIENT".equals(mode) == false && filesRowName != null) { %>
 	    <%=filesRowName%> = new <%=filesRowName%>Struct();
 		<%=filesRowName%>.FILE_ID = file_<%=cid%>.getId();
 		<%=filesRowName%>.FILE_TITLE = file_<%=cid%>.getTitle();

@@ -1,6 +1,7 @@
 import java.io.IOException;
 
 import com.google.api.services.drive.model.File;
+import com.google.api.services.drive.model.ParentReference;
 
 import de.jlo.talendcomp.gdrive.DriveHelper;
 
@@ -13,8 +14,9 @@ public class TestDriveHelper {
 		try {
 //			testDownloadById();
 			testUpload();
-//			testDeleteById();
+//    		testDeleteById();
 //			testGetById();
+//			testGetByName();
 //			testCreateFolders();
 //			testList();
 //			testLoadMimeTypes();
@@ -57,7 +59,7 @@ public class TestDriveHelper {
 	public static void testList() throws Exception {
 		DriveHelper h = getDriverHelper();
 		System.out.println("List...");
-		for (File f : h.list(null, false, null, null, null, null, null, null, false, "krieger-it")) {
+		for (File f : h.list(null, false, null, null, null, null, null, "jan.lolling@gmail.com", true, null)) {
 			printOut(f);
 		}
 		System.out.println("Done.");
@@ -67,7 +69,7 @@ public class TestDriveHelper {
 		DriveHelper h = getDriverHelper();
 		System.out.println("Get...");
 		String fileId = "0B1aeMk_qSLEkcVhIRlRIN0tfRGM";
-		File f = h.downloadById(fileId, "/Users/jan/Desktop/", true);
+		File f = h.downloadById(fileId, "/Users/jan/Desktop/", null, true);
 		printOut(f);
 		System.out.println("Done.");
 	}
@@ -75,14 +77,24 @@ public class TestDriveHelper {
 	public static void testDeleteById() throws Exception {
 		DriveHelper h = getDriverHelper();
 		System.out.println("Delete...");
-		h.delete("0B1aeMk_qSLEkY1NtV1BLUDJSS1k", false);
+		h.deleteById("0B1aeMk_qSLEkZGExREgxTTdYOG8", false);
 		System.out.println("Done.");
 	}
 
 	public static void testGetById() throws Exception {
 		DriveHelper h = getDriverHelper();
 		System.out.println("Get...");
-		File f = h.get("0B1aeMk_qSLEkZGExREgxTTdYOG8");
+		File f = h.getById("0B1aeMk_qSLEkZGExREgxTTdYOG8");
+		if (f != null) {
+			printOut(f);
+		}
+		System.out.println("Done.");
+	}
+
+	public static void testGetByName() throws Exception {
+		DriveHelper h = getDriverHelper();
+		System.out.println("Get...");
+		File f = h.getByName("krieger-it/IBM_DevelopmentPackage_for_Eclipse_Win_X86_64_4.0.0.zip");
 		if (f != null) {
 			printOut(f);
 		}
@@ -92,7 +104,7 @@ public class TestDriveHelper {
 	public static void testUpload() throws Exception {
 		DriveHelper h = getDriverHelper();
 		System.out.println("Put...");
-		File f = h.upload("/Volumes/Data/Talend/testdata/ga/drive/2008-02-14-REST--JUG-Berlin.pdf", null, null, false);
+		File f = h.upload("/Volumes/Data/Talend/testdata/ga/drive/2008-02-14-REST--JUG-Berlin.pdf", null, "/TEST1/TEST2/TEST3/Test4", true, true);
 		printOut(f);
 		System.out.println("Done.");
 	}
@@ -110,7 +122,15 @@ public class TestDriveHelper {
 //		System.out.println("downloadUrl=" + f.getDownloadUrl());
 		System.out.println("mime.type=" + f.getMimeType());
 		System.out.println("modified at=" + f.getModifiedDate());
-		System.out.println("owner=" + f.getOwnerNames());
+		System.out.println("owner=" + f.getOwners());
+		if (f.getParents() != null) {
+			System.out.print("parents=");
+			for (ParentReference r : f.getParents()) {
+				System.out.print(r.getId());
+				System.out.print(";");
+			}
+			System.out.println();
+		}
 //		System.out.println(f.toPrettyString());
 		System.out.println();
 	}
@@ -119,7 +139,7 @@ public class TestDriveHelper {
 		DriveHelper h = getDriverHelper();
 		System.out.println("Get...");
 		for (File f : h.list(null, false, null, null, null, null, null, null, true, null)) {
-			h.downloadById(f.getId(), "/Volumes/Data/Talend/testdata/ga/drive/mobile/" + f.getId() + ".txt", true);
+			h.downloadById(f.getId(), "/Volumes/Data/Talend/testdata/ga/drive/mobile/" + f.getId() + ".txt", null, true);
 		}
 		System.out.println("Done.");
 	}
@@ -127,7 +147,7 @@ public class TestDriveHelper {
 	private static void testCreateFolders() throws Exception {
 		DriveHelper h = getDriverHelper();
 		System.out.println("Create folders...");
-		String path = "/folder1/folder2/folder3";
+		String path = "/TEST1/TEST2/TEST3";
 		File dir = h.getFolder(path, true);
 		printOut(dir);
 	}
