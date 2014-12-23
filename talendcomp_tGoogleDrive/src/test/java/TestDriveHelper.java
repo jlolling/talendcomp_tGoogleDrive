@@ -12,14 +12,15 @@ public class TestDriveHelper {
 	 */
 	public static void main(String[] args) {
 		try {
+//			testMoveFile();
 //			testDownloadById();
-			testUpload();
+//			testUpload();
 //    		testDeleteById();
 //			testGetById();
 //			testGetByName();
 //			testCreateFolders();
 //			testList();
-//			testLoadMimeTypes();
+			testPermissions();
 		} catch (Exception e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
@@ -30,12 +31,13 @@ public class TestDriveHelper {
 	
 	private static DriveHelper getDriverHelper() throws Exception {
 		if (client == null) {
-			client = getHelperWithPersonalAccount();
+//			client = getHelperWithPersonalAccount();
+			client = getHelperWithServiceAccountMobile();
 		}
 		return client;
 	}
 
-	private static DriveHelper getHelperWithServiceAccount() throws Exception {
+	private static DriveHelper getHelperWithServiceAccountMobile() throws Exception {
 		DriveHelper h = new DriveHelper();
 		h.setApplicationName("GATalendComp");
 		h.setAccountEmail("422451649636@developer.gserviceaccount.com");
@@ -59,7 +61,7 @@ public class TestDriveHelper {
 	public static void testList() throws Exception {
 		DriveHelper h = getDriverHelper();
 		System.out.println("List...");
-		for (File f : h.list(null, false, null, null, null, null, null, "jan.lolling@gmail.com", true, null)) {
+		for (File f : h.list(null, false, null, null, null, null, null, null, true, null)) {
 			printOut(f);
 		}
 		System.out.println("Done.");
@@ -104,8 +106,18 @@ public class TestDriveHelper {
 	public static void testUpload() throws Exception {
 		DriveHelper h = getDriverHelper();
 		System.out.println("Put...");
-		File f = h.upload("/Volumes/Data/Talend/testdata/ga/drive/2008-02-14-REST--JUG-Berlin.pdf", null, "/TEST1/TEST2/TEST3/Test4", true, true);
+		File f = h.upload("/Volumes/Data/Talend/testdata/ga/drive/2008-02-14-REST--JUG-Berlin.pdf", null, null, false, true);
+		h.setPermissionAsWriter("0B58W_P4pAxsEZkxWZ3huc184Z3c", "jan.lolling@gmail.com", false);
 		printOut(f);
+		System.out.println("Done.");
+	}
+
+	public static void testPermissions() throws Exception {
+		DriveHelper h = getDriverHelper();
+		System.out.println("Permissions...");
+		String fileId = "0B58W_P4pAxsEZkxWZ3huc184Z3c";
+		h.setPermissionAsWriter(fileId, "doris.lolling@gmail.com", true);
+		printOut(h.getById(fileId));
 		System.out.println("Done.");
 	}
 
@@ -122,7 +134,9 @@ public class TestDriveHelper {
 //		System.out.println("downloadUrl=" + f.getDownloadUrl());
 		System.out.println("mime.type=" + f.getMimeType());
 		System.out.println("modified at=" + f.getModifiedDate());
-		System.out.println("owner=" + f.getOwners());
+		System.out.println("owners=" + de.jlo.talendcomp.gdrive.DriveHelper.buildChainForUsers(f.getOwners(), ","));
+		System.out.println("readers=" + de.jlo.talendcomp.gdrive.DriveHelper.buildChainForPermissionReaders(f.getPermissions(), ","));
+		System.out.println("writers=" + de.jlo.talendcomp.gdrive.DriveHelper.buildChainForPermissionWriters(f.getPermissions(), ","));
 		if (f.getParents() != null) {
 			System.out.print("parents=");
 			for (ParentReference r : f.getParents()) {
@@ -131,17 +145,8 @@ public class TestDriveHelper {
 			}
 			System.out.println();
 		}
-//		System.out.println(f.toPrettyString());
+		System.out.println(f.toPrettyString());
 		System.out.println();
-	}
-	
-	private static void downloadAll() throws Exception {
-		DriveHelper h = getDriverHelper();
-		System.out.println("Get...");
-		for (File f : h.list(null, false, null, null, null, null, null, null, true, null)) {
-			h.downloadById(f.getId(), "/Volumes/Data/Talend/testdata/ga/drive/mobile/" + f.getId() + ".txt", null, true);
-		}
-		System.out.println("Done.");
 	}
 	
 	private static void testCreateFolders() throws Exception {
@@ -152,8 +157,12 @@ public class TestDriveHelper {
 		printOut(dir);
 	}
 	
-	private static void testLoadMimeTypes() throws Exception {
-		DriveHelper.loadMimeTypes();
+	public static void testMoveFile() throws Exception {
+		DriveHelper h = getDriverHelper();
+		String fileToMove = "ETL Architektur Überblick";
+		String targetFolder = "Test_for_move";
+		File f = h.moveToFolderByName(fileToMove, targetFolder, true);
+		printOut(f);
 	}
 	
 }
