@@ -45,6 +45,8 @@ import com.google.api.services.drive.Drive;
 import com.google.api.services.drive.DriveScopes;
 import com.google.api.services.drive.model.FileList;
 import com.google.api.services.drive.model.ParentReference;
+import com.google.api.services.drive.model.Permission;
+import com.google.api.services.drive.model.User;
 
 public class DriveHelper {
 	
@@ -118,14 +120,6 @@ public class DriveHelper {
 				.build();
 	}
 
-	/**
-	 * Authorizes the installed application to access user's protected YouTube
-	 * data.
-	 * 
-	 * @param scopes
-	 *            list of scopes needed to access general and analytic YouTube
-	 *            info.
-	 */
 	private Credential authorizeWithClientSecret() throws Exception {
 		if (clientSecretFile == null) {
 			throw new IllegalStateException("client secret file is not set");
@@ -177,46 +171,126 @@ public class DriveHelper {
 				new LocalServerReceiver()).authorize(accountEmail);
 	}
 
+	/**
+	 * Initialize the Drive service client
+	 * Depending of the settings a service account or a client-Id for native applications will be used
+	 * @throws Exception
+	 */
 	public void initializeClient() throws Exception {
-		// only if we do not already have a client
-		if (driveService == null) {
-			// Authorization.
-			final Credential credential;
-			if (useServiceAccount) {
-				credential = authorizeWithServiceAccount();
+		// Authorization.
+		final Credential credential;
+		if (useServiceAccount) {
+			credential = authorizeWithServiceAccount();
+		} else {
+			credential = authorizeWithClientSecret();
+		}
+		driveService = new Drive.Builder(
+				HTTP_TRANSPORT, 
+				JSON_FACTORY, 	
+				new HttpRequestInitializer() {
+  					@Override
+					public void initialize(final HttpRequest httpRequest) throws IOException {
+						credential.initialize(httpRequest);
+						httpRequest.setConnectTimeout(timeoutInSeconds * 1000);
+						httpRequest.setReadTimeout(timeoutInSeconds * 1000);
+					}
+				})
+	     		.setApplicationName(applicationName)
+	     		.build();
+	}
+	
+	/**
+	 * Move a file to another folder on the Drive
+	 * @param driveFilePathToMove source file path
+	 * @param driveTargetFolderPath path to the target folder
+	 * @param createIfNotExists if true missing target folder will be created
+	 * @return meta data of the target file
+	 * @throws Exception
+	 */
+	public com.google.api.services.drive.model.File moveToFolderByName(String driveFilePathToMove, String driveTargetFolderPath, boolean createIfNotExists) throws Exception {
+		com.google.api.services.drive.model.File fileToMove = getByName(driveFilePathToMove);
+		if (fileToMove == null) {
+			throw new Exception("File " + driveFilePathToMove + " does not extsis in the Drive.");
+		} else {
+			com.google.api.services.drive.model.File targetFolder = getFolder(driveTargetFolderPath, createIfNotExists);
+			if (targetFolder == null) {
+				throw new Exception("Target folder " + driveTargetFolderPath + " does not exists or cannot be created.");
 			} else {
-				credential = authorizeWithClientSecret();
+				return moveToFolder(fileToMove, targetFolder.getId());
 			}
-			driveService = new Drive.Builder(
-					HTTP_TRANSPORT, 
-					JSON_FACTORY, 	
-					new HttpRequestInitializer() {
-	  					@Override
-						public void initialize(final HttpRequest httpRequest) throws IOException {
-							credential.initialize(httpRequest);
-							httpRequest.setConnectTimeout(timeoutInSeconds * 1000);
-							httpRequest.setReadTimeout(timeoutInSeconds * 1000);
-						}
-					})
-		     		.setApplicationName(applicationName)
-		     		.build();
 		}
 	}
-		
-//	private void removeAllParentFolders(com.google.api.services.drive.model.File file) throws Exception {
-//		if (file.getParents() != null) {
-//			for (ParentReference pr : file.getParents()) {
-//				driveService.parents().delete(file.getId(), pr.getId());
-//			}
-//		}
-//	}
-//	
-//	private com.google.api.services.drive.model.ParentReference insertFileIntoFolder(String folderId, String fileId) throws Exception {
-//		ParentReference newParent = new ParentReference();
-//		newParent.setId(folderId);
-//		return driveService.parents().insert(fileId, newParent).execute();
-//	}
 	
+	/**
+	 * Move a file to another folder on the Drive
+	 * @param fileId source file Id
+	 * @param driveTargetFolderPath path to the target folder
+	 * @param createIfNotExists if true missing target folder will be created
+	 * @return meta data of the target file
+	 * @throws Exception
+	 */
+	public com.google.api.services.drive.model.File moveToFolderById(String fileId, String driveTargetFolderPath, boolean createIfNotExists) throws Exception {
+		com.google.api.services.drive.model.File fileToMove = getById(fileId);
+		if (fileToMove == null) {
+			throw new Exception("File with id=" + fileId + " does not extsis in the Drive.");
+		} else {
+			com.google.api.services.drive.model.File targetFolder = getFolder(driveTargetFolderPath, createIfNotExists);
+			if (targetFolder == null) {
+				throw new Exception("Target folder " + driveTargetFolderPath + " does not exists or cannot be created.");
+			} else {
+				return moveToFolder(fileToMove, targetFolder.getId());
+			}
+		}
+	}
+
+	private com.google.api.services.drive.model.File moveToFolder(com.google.api.services.drive.model.File fileToMove, String newParentId) throws Exception {
+		checkPrerequisits();
+		insertFileIntoFolder(newParentId, fileToMove);
+		removeAllParentFolders(fileToMove, newParentId);
+		return driveService
+				.files()
+				.get(fileToMove.getId())
+				.execute();
+	}
+	
+	private void removeAllParentFolders(com.google.api.services.drive.model.File file, String exceptParentId) throws Exception {
+		checkPrerequisits();
+		if (file.getParents() != null) {
+			for (ParentReference pr : file.getParents()) {
+				if (pr.getId().equals(exceptParentId) == false) {
+					driveService
+						.parents()
+						.delete(file.getId(), pr.getId())
+						.execute();
+				}
+			}
+		}
+	}
+	
+	private void insertFileIntoFolder(String folderId, com.google.api.services.drive.model.File file) throws Exception {
+		checkPrerequisits();
+		if (file.getParents() != null) {
+			for (ParentReference pr : file.getParents()) {
+				if (pr.getId().equals(folderId)) {
+					throw new Exception("File id=" + file.getId() + " has already a parent reference to the folder-Id=" + folderId);
+				}
+			}
+		}
+		ParentReference newParent = new ParentReference();
+		newParent.setId(folderId);
+		driveService
+			.parents()
+			.insert(file.getId(), newParent)
+			.execute();
+	}
+	
+	/**
+	 * returns the folder referenced by its virtual name, can create the folder structure if not exists
+	 * @param path the path to find / to create
+	 * @param createIfNotExists if true create the path if not exists
+	 * @return the file object of the leaf folder
+	 * @throws Exception
+	 */
 	public com.google.api.services.drive.model.File getFolder(String path, boolean createIfNotExists) throws Exception {
 		if (path == null || path.trim().isEmpty()) {
 			throw new IllegalArgumentException("path cannot be null or empty.");
@@ -258,11 +332,11 @@ public class DriveHelper {
 			if (level < pathArray.size() - 1) {
 				// we have to continue to follow the path to the end
 				child = getFolder(
-						allFolders,
-						child,
-						pathArray,
-						level + 1,
-						createIfNotExists);
+							allFolders,
+							child,
+							pathArray,
+							level + 1,
+							createIfNotExists);
 			}
 		}
 		return child;
@@ -291,20 +365,30 @@ public class DriveHelper {
 	}
 	
 	private com.google.api.services.drive.model.File createFolder(String parentId, String title) throws Exception {
+		checkPrerequisits();
 		com.google.api.services.drive.model.File folder = new com.google.api.services.drive.model.File();
 		folder.setTitle(title);
 		folder.setMimeType(FOLDER_MIME_TYPE);
 		if (parentId != null) {
 			ParentReference pr = new ParentReference();
 			pr.setId(parentId);
-			List<ParentReference> parents = new ArrayList<ParentReference>();
-			parents.add(pr);
-			folder.setParents(parents);
+			folder.setParents(Arrays.asList(pr));
 		}
 		return driveService.files().insert(folder).execute();
 	}
 		
-	public com.google.api.services.drive.model.File upload(String localFilePath, String title, String parentPath, boolean createDirIfNecessary, boolean overwrite) throws Exception {
+	/**
+	 * Upload a file to the google drive
+	 * @param localFilePath local file path
+	 * @param title the alternate title, if null the file name will be used as title
+	 * @param driveFolderPath target folder
+	 * @param createDirIfNecessary if true create the target folder if not exists
+	 * @param overwrite overwrite an existing file with the same title, otherweise if a file already exists an exception will be thrown
+	 * @return the meta data of the new file
+	 * @throws Exception
+	 */
+	public com.google.api.services.drive.model.File upload(String localFilePath, String title, String driveFolderPath, boolean createDirIfNecessary, boolean overwrite) throws Exception {
+		checkPrerequisits();
 		if (localFilePath == null || localFilePath.trim().isEmpty()) {
 			throw new IllegalArgumentException("localFilePath cannot be null or empty");
 		}
@@ -312,11 +396,11 @@ public class DriveHelper {
 		if (localFile.canRead() == false) {
 			throw new Exception("Local upload file: " + localFile.getAbsolutePath() + " cannot be read.");
 		}
-		if (parentPath != null && parentPath.trim().isEmpty() == false) {
-			parentPath = parentPath.trim();
-			int pos = parentPath.lastIndexOf("/");
-			if (pos == parentPath.length() - 1) {
-				parentPath = parentPath.substring(0, pos); // cut up last /
+		if (driveFolderPath != null && driveFolderPath.trim().isEmpty() == false) {
+			driveFolderPath = driveFolderPath.trim();
+			int pos = driveFolderPath.lastIndexOf("/");
+			if (pos == driveFolderPath.length() - 1) {
+				driveFolderPath = driveFolderPath.substring(0, pos); // cut up last /
 			}
 		}
 		if (title != null) {
@@ -326,8 +410,8 @@ public class DriveHelper {
 			title = localFile.getName();
 		}
 		String filePath = null;
-		if (parentPath != null) {
-			filePath = parentPath + "/" + title;
+		if (driveFolderPath != null) {
+			filePath = driveFolderPath + "/" + title;
 		} else {
 			filePath = title;
 		}
@@ -338,12 +422,12 @@ public class DriveHelper {
 		if (existingFile == null) {
 			System.out.println("Upload new file " + localFile.getAbsolutePath());
 			String parentId = null;
-			if (parentPath != null && parentPath.trim().isEmpty() == false) {
-				com.google.api.services.drive.model.File parentFolder = getFolder(parentPath, createDirIfNecessary);
+			if (driveFolderPath != null && driveFolderPath.trim().isEmpty() == false) {
+				com.google.api.services.drive.model.File parentFolder = getFolder(driveFolderPath, createDirIfNecessary);
 				if (parentFolder != null) {
 					parentId = parentFolder.getId();
 				} else {
-					throw new Exception("Parent folder " + parentPath + " does not exists or cannot be created.");
+					throw new Exception("Parent folder " + driveFolderPath + " does not exists or cannot be created.");
 				}
 			}
 			com.google.api.services.drive.model.File uploadFile = new com.google.api.services.drive.model.File();
@@ -351,9 +435,7 @@ public class DriveHelper {
 			if (parentId != null) {
 				ParentReference pr = new ParentReference();
 				pr.setId(parentId);
-				List<ParentReference> parents = new ArrayList<ParentReference>();
-				parents.add(pr);
-				uploadFile.setParents(parents);
+				uploadFile.setParents(Arrays.asList(pr));
 			}
 		    String mimeType = getMimeType(localFilePath);
 		    FileContent mediaContent = new FileContent(mimeType, localFile);
@@ -394,15 +476,33 @@ public class DriveHelper {
 		}
 	}
 	
-	public com.google.api.services.drive.model.File downloadByName(String filePath, String localFolder, String newFileName, boolean createDirs) throws Exception {
-		com.google.api.services.drive.model.File file = getByName(filePath);
+	/**
+	 * Download a file to the local file system
+	 * @param driveFilePath path of the file in the Drive
+	 * @param localFolder target folder in file system
+	 * @param newFileName if not null this will be the new file name
+	 * @param createDirs if true missing folders will be created
+	 * @return the loaded file meta data
+	 * @throws Exception
+	 */
+	public com.google.api.services.drive.model.File downloadByName(String driveFilePath, String localFolder, String newFileName, boolean createDirs) throws Exception {
+		com.google.api.services.drive.model.File file = getByName(driveFilePath);
 		if (file == null) {
-			throw new Exception("File " + filePath + " does not exists in drive.");
+			throw new Exception("File " + driveFilePath + " does not exists in drive.");
 		} else {
 			return downloadById(file.getId(), localFolder, newFileName, createDirs);
 		}
 	}
 
+	/**
+	 * Download a file to the local file system
+	 * @param fileId ID if the file in the Drive
+	 * @param localFolder target folder in file system
+	 * @param newFileName if not null this will be the new file name
+	 * @param createDirs if true missing folders will be created
+	 * @return the loaded file meta data
+	 * @throws Exception
+	 */
 	public com.google.api.services.drive.model.File downloadById(String fileId, String localFolder, String newFileName, boolean createDirs) throws Exception {
 		if (fileId == null || fileId.trim().isEmpty()) {
 			throw new IllegalArgumentException("fileId cannot be null or empty");
@@ -428,27 +528,35 @@ public class DriveHelper {
 		return file;
 	}
 	
-	public com.google.api.services.drive.model.File deleteByName(String filePath, boolean ignoreMissing) throws Exception {
-		int pos = filePath.lastIndexOf('/');
-		String folderPath = null;
-		String title = filePath;
-		if (pos > 0) {
-			folderPath = filePath.substring(0, pos);
-			title = filePath.substring(pos);
-		}
-		List<com.google.api.services.drive.model.File> files = list(null, true, null, title, null, null, null, null, false, folderPath);
-		if (files.size() > 0) {
-			return files.get(0);
-		} else {
+	/**
+	 * Delete a file on the Drive
+	 * @param driveFilePath the path within the drive
+	 * @param ignoreMissing if true missing file will not throw an exception
+	 * @return the meta data of he deleted file
+	 * @throws Exception
+	 */
+	public com.google.api.services.drive.model.File deleteByName(String driveFilePath, boolean ignoreMissing) throws Exception {
+		com.google.api.services.drive.model.File file = getByName(driveFilePath);
+		if (file == null) {
 			if (ignoreMissing == false) {
-				throw new Exception("File with file path=" + filePath + " does not exists in the drive");
+				throw new Exception("File with file path=" + driveFilePath + " does not exists in the drive");
 			} else {
 				return null;
 			}
+		} else {
+			return deleteById(file.getId(), ignoreMissing);
 		}
 	}	
 	
+	/**
+	 * Delete a file on the Drive
+	 * @param fileId ID if he file
+	 * @param ignoreMissing if true a missing file will not cause an exception
+	 * @return the meta data of the deleted file
+	 * @throws Exception
+	 */
 	public com.google.api.services.drive.model.File deleteById(String fileId, boolean ignoreMissing) throws Exception {
+		checkPrerequisits();
 		if (fileId == null || fileId.trim().isEmpty()) {
 			throw new IllegalArgumentException("fileId cannot be null or empty");
 		}
@@ -467,19 +575,26 @@ public class DriveHelper {
 		}
 	}
 	
-	public com.google.api.services.drive.model.File getByName(String filePath) throws Exception {
-		if (filePath == null || filePath.trim().isEmpty()) {
+	/**
+	 * Get the file meta data
+	 * @param driveFilePath the file path on the Drive
+	 * @return file meta data
+	 * @throws Exception
+	 */
+	public com.google.api.services.drive.model.File getByName(String driveFilePath) throws Exception {
+		checkPrerequisits();
+		if (driveFilePath == null || driveFilePath.trim().isEmpty()) {
 			throw new IllegalArgumentException("filePath cannot be null or empty");
 		} else {
-			filePath = filePath.trim();
+			driveFilePath = driveFilePath.trim();
 		}
-		int pos = filePath.lastIndexOf('/');
+		int pos = driveFilePath.lastIndexOf('/');
 		String folderPath = null;
-		String title = filePath;
+		String title = driveFilePath;
 		String parentId = null;
 		if (pos > 0) {
-			folderPath = filePath.substring(0, pos);
-			title = filePath.substring(pos + 1);
+			folderPath = driveFilePath.substring(0, pos);
+			title = driveFilePath.substring(pos + 1);
 			com.google.api.services.drive.model.File parent = getFolder(folderPath, false);
 			if (parent == null) {
 				return null;
@@ -502,7 +617,6 @@ public class DriveHelper {
 		if (q.length() > 0) {
 			request.setQ(q.toString().trim());
 		}
-		request.setCorpus("DEFAULT");
 		List<com.google.api.services.drive.model.File> files = executeRequest(request, null);
 		if (files.size() > 0) {
 			return files.get(0);
@@ -511,7 +625,14 @@ public class DriveHelper {
 		}
 	}
 	
+	/**
+	 * Get the file meta data
+	 * @param fileId ID of the file
+	 * @return meta data
+	 * @throws Exception
+	 */
 	public com.google.api.services.drive.model.File getById(String fileId) throws Exception {
+		checkPrerequisits();
 		if (fileId == null || fileId.trim().isEmpty()) {
 			throw new IllegalArgumentException("fileId cannot be null or empty");
 		}
@@ -531,6 +652,7 @@ public class DriveHelper {
 	}
 
 	private void downloadByUrl(String fileDownloadUrl, String localFilePath, boolean createDirs) throws Exception {
+		checkPrerequisits();
 		lastDownloadedFilePath = null;
 		lastDownloadedFileSize = 0;
 		File localFile = new File(localFilePath);
@@ -566,10 +688,11 @@ public class DriveHelper {
 	}
 	
 	private List<com.google.api.services.drive.model.File> listAllFolders() throws Exception {
+		checkPrerequisits();
 		com.google.api.services.drive.Drive.Files.List request = driveService
 				.files()
 				.list();
-		request.setQ("mimeType = '" + FOLDER_MIME_TYPE + "' and trashed = false");
+		request.setQ("mimeType='" + FOLDER_MIME_TYPE + "' and trashed=false");
 		return executeRequest(request, null);
 	}
 	
@@ -589,6 +712,7 @@ public class DriveHelper {
 			String owner, 
 			boolean includeFolders,
 			String parentFolder) throws Exception {
+		checkPrerequisits();
 		// prepare the local filter
 		Pattern pattern = null;
 		if (localFilterRegex != null && localFilterRegex.trim().isEmpty() == false) {
@@ -652,7 +776,7 @@ public class DriveHelper {
 		if (q.length() > 0) {
 			q.append(" and ");
 		}
-		q.append("trashed = false");
+		q.append("trashed=false");
 		if (parentFolder != null && parentFolder.trim().isEmpty() == false) {
 			String parentId = null;
 			com.google.api.services.drive.model.File parent = getFolder(parentFolder, false);
@@ -704,24 +828,53 @@ public class DriveHelper {
 		} while (request.getPageToken() != null	&& request.getPageToken().length() > 0);
 		return resultList;
 	}
+	
+	private void setPermissions(String role, String fileId, String emails, boolean sendEmailNotification) throws Exception {
+		if (emails != null && emails.trim().isEmpty() == false) {
+			if ("owner".equals(role) || "reader".equals(role) || "writer".equals(role)) {
+				checkPrerequisits();
+				StringTokenizer st = new StringTokenizer(emails, ",;");
+				while (st.hasMoreTokens()) {
+					String email = st.nextToken();
+					if (email != null && email.trim().isEmpty() == false) {
+						Permission p = new Permission();
+						p.setType("user");
+						p.setValue(email);
+						p.setRole(role);
+						driveService
+							.permissions()
+							.insert(fileId, p)
+							.setSendNotificationEmails(sendEmailNotification)
+							.execute();
+					}
+				}
+			} else {
+				throw new IllegalArgumentException("Unknown role: " + role);
+			}
+		}
+	}
 
-	public boolean isUseServiceAccount() {
-		return useServiceAccount;
+	public void setPermissionAsOwner(String fileId, String emails, boolean sendEmailNotification) throws Exception {
+		setPermissions("owner", fileId, emails, sendEmailNotification);
+	}
+
+	public void setPermissionAsReader(String fileId, String emails, boolean sendEmailNotification) throws Exception {
+		setPermissions("reader", fileId, emails, sendEmailNotification);
+	}
+
+	public void setPermissionAsWriter(String fileId, String emails, boolean sendEmailNotification) throws Exception {
+		setPermissions("writer", fileId, emails, sendEmailNotification);
 	}
 
 	public void setUseServiceAccount(boolean useServiceAccount) {
 		this.useServiceAccount = useServiceAccount;
 	}
 
-	public String getClientSecretFile() {
-		return clientSecretFile;
-	}
-
 	public void setClientSecretFile(String clientSecretFile) {
 		this.clientSecretFile = clientSecretFile;
 	}
 	
-	public static void loadMimeTypes() throws Exception {
+	private static void loadMimeTypes() throws Exception {
 		InputStream in = DriveHelper.class.getResourceAsStream("/mime.types");
 		if (in == null) {
 			throw new Exception("Resource mime.types could not be found");
@@ -748,6 +901,12 @@ public class DriveHelper {
 		}
 	}
 	
+	/**
+	 * get the mime-type of a file
+	 * @param filePath the file path (with file name)
+	 * @return the mime-type according to the latest Apache Foundation definition
+	 * @throws Exception
+	 */
 	public String getMimeType(String filePath) throws Exception {
 		int pos = filePath.lastIndexOf('.');
 		String fileExtension = null;
@@ -767,6 +926,12 @@ public class DriveHelper {
 		return mimeTypeMap.get(fileExtension);
 	}
 	
+	/**
+	 * builds a separated String from the list entries
+	 * @param list
+	 * @param separator
+	 * @return the chained strings
+	 */
 	public static String buildChain(List<String> list, String separator) {
 		if (list == null || list.isEmpty()) {
 			return null;
@@ -784,43 +949,135 @@ public class DriveHelper {
 		return sb.toString();
 	}
 	
-	public static boolean isFolder(com.google.api.services.drive.model.File file) {
-		return FOLDER_MIME_TYPE.equals(file.getMimeType());
+	/**
+	 * build a chained list of the email addresses of the Users
+	 * @param list users
+	 * @param separator
+	 * @return chained string
+	 */
+	public static String buildChainForUsers(List<User> list, String separator) {
+		if (list == null || list.isEmpty()) {
+			return null;
+		}
+		boolean firstLoop = true;
+		StringBuilder sb = new StringBuilder();
+		for (User user : list) {
+			if (firstLoop) {
+				firstLoop = false;
+			} else {
+				sb.append(separator);
+			}
+			sb.append(user.getEmailAddress());
+		}
+		return sb.toString();
 	}
 
-	public long getTimeMillisOffsetToPast() {
-		return timeMillisOffsetToPast;
+	/**
+	 * build a chained list of the email addresses of the writers
+	 * @param list users
+	 * @param separator
+	 * @return chained string
+	 */
+	public static String buildChainForPermissionWriters(List<Permission> list, String separator) {
+		if (list == null || list.isEmpty()) {
+			return null;
+		}
+		boolean firstLoop = true;
+		StringBuilder sb = new StringBuilder();
+		for (Permission p : list) {
+			if ("writer".equalsIgnoreCase(p.getRole())) {
+				if (firstLoop) {
+					firstLoop = false;
+				} else {
+					sb.append(separator);
+				}
+				sb.append(p.getEmailAddress());
+			}
+		}
+		return sb.toString();
+	}
+
+	/**
+	 * build a chained list of the email addresses of the writers
+	 * @param list users
+	 * @param separator
+	 * @return chained string
+	 */
+	public static String buildChainForPermissionReaders(List<Permission> list, String separator) {
+		if (list == null || list.isEmpty()) {
+			return null;
+		}
+		boolean firstLoop = true;
+		StringBuilder sb = new StringBuilder();
+		for (Permission p : list) {
+			if ("reader".equalsIgnoreCase(p.getRole())) {
+				if (firstLoop) {
+					firstLoop = false;
+				} else {
+					sb.append(separator);
+				}
+				sb.append(p.getEmailAddress());
+			}
+		}
+		return sb.toString();
+	}
+
+	/**
+	 * checks if the file object is a folder
+	 * @param file
+	 * @return true if folder
+	 */
+	public static boolean isFolder(com.google.api.services.drive.model.File file) {
+		return FOLDER_MIME_TYPE.equals(file.getMimeType());
 	}
 
 	public void setTimeMillisOffsetToPast(long timeMillisOffsetToPast) {
 		this.timeMillisOffsetToPast = timeMillisOffsetToPast;
 	}
 
-	public int getTimeoutInSeconds() {
-		return timeoutInSeconds;
-	}
-
 	public void setTimeoutInSeconds(int timeoutInSeconds) {
 		this.timeoutInSeconds = timeoutInSeconds;
 	}
 
+	/**
+	 * the file path of the last download file
+	 * @return file path
+	 */
 	public String getLastDownloadedFilePath() {
 		return lastDownloadedFilePath;
 	}
 
+	/**
+	 * the size of the last download file
+	 * @return size in byte
+	 */
 	public long getLastDownloadedFileSize() {
 		return lastDownloadedFileSize;
 	}
 
+	/**
+	 * returns the Drive service client to re-usage for other DriveHelper instances
+	 * @return Drive instance
+	 */
 	public Drive getDriveService() {
 		return driveService;
 	}
 
+	/**
+	 * set the Drive instance 
+	 * @param driveService
+	 */
 	public void setDriveService(Drive driveService) {
 		if (driveService == null) {
 			throw new IllegalArgumentException("Drive Service cannot be null!");
 		}
 		this.driveService = driveService;
+	}
+	
+	private void checkPrerequisits() throws Exception {
+		if (driveService == null) {
+			throw new Exception("Drive service client not initialized or set!");
+		}
 	}
 
 }
