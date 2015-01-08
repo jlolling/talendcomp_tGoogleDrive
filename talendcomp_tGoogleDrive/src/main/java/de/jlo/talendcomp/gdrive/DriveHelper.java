@@ -58,6 +58,7 @@ public class DriveHelper {
 	private String accountEmail;
 	private String applicationName = null;
 	private boolean useServiceAccount = true;
+	private boolean useApplicationClientID = false;
 	private String credentialDataStoreDir = null;
 	private long timeMillisOffsetToPast = 10000;
 	private Drive driveService;
@@ -181,8 +182,10 @@ public class DriveHelper {
 		final Credential credential;
 		if (useServiceAccount) {
 			credential = authorizeWithServiceAccount();
-		} else {
+		} else if (useApplicationClientID) {
 			credential = authorizeWithClientSecret();
+		} else {
+			throw new IllegalStateException("No authorisation method set!");
 		}
 		driveService = new Drive.Builder(
 				HTTP_TRANSPORT, 
@@ -661,7 +664,7 @@ public class DriveHelper {
 				throw new Exception("Unable to create parent directory: " + localFile.getParent());
 			}
 		}
-		OutputStream fileOut = new BufferedOutputStream(new FileOutputStream(localFile)); 
+		OutputStream fileOut = new BufferedOutputStream(new FileOutputStream(localFile));
 		try {
 		    MediaHttpDownloader downloader = new MediaHttpDownloader(
 		    		HTTP_TRANSPORT, 
@@ -679,11 +682,23 @@ public class DriveHelper {
 		    downloader.download(new GenericUrl(fileDownloadUrl), fileOut);
 		    lastDownloadedFilePath = localFile.getAbsolutePath();
 		    lastDownloadedFileSize = localFile.length();
-		} finally {
 			if (fileOut != null) {
 				fileOut.flush();
 				fileOut.close();
+				fileOut = null;
 			}
+		} catch (Exception e) {
+			if (fileOut != null) {
+				fileOut.flush();
+				fileOut.close();
+				fileOut = null;
+			}
+			Thread.sleep(200);
+			if (localFile.canWrite()) {
+				System.err.println("Download failed. Remove incomplete file: " + localFile.getAbsolutePath());
+				localFile.delete();
+			}
+			throw e;
 		}
 	}
 	
@@ -1078,6 +1093,14 @@ public class DriveHelper {
 		if (driveService == null) {
 			throw new Exception("Drive service client not initialized or set!");
 		}
+	}
+
+	public boolean isUseApplicationClientID() {
+		return useApplicationClientID;
+	}
+
+	public void setUseApplicationClientID(boolean useApplicationClientID) {
+		this.useApplicationClientID = useApplicationClientID;
 	}
 
 }
