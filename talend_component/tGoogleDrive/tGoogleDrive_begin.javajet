@@ -14,7 +14,8 @@
    String cid = node.getUniqueName();
    boolean useExistingClient = "true".equals(ElementParameterParser.getValue(node, "__USE_EXISTING_CLIENT__"));
    String component = ElementParameterParser.getValue(node, "__DRIVE_COMPONENT__");
-   boolean useServiceAccount = "SERVICE_ACCOUNT".equals(ElementParameterParser.getValue(node, "__USE_SERVICE_ACCOUNT__"));
+   boolean useServiceAccount = "SERVICE_ACCOUNT".equals(ElementParameterParser.getValue(node, "__AUTHENTICATION_METHOD__"));
+   boolean useApplicationClientID = "APPLICATION_CLIENT_ID".equals(ElementParameterParser.getValue(node, "__AUTHENTICATION_METHOD__"));
    String clientSecretFile = ElementParameterParser.getValue(node, "__CLIENT_SECRET_FILE__");
    String userEmail = ElementParameterParser.getValue(node, "__USER_ACCOUNT_EMAIL__");
    String applicationName = ElementParameterParser.getValue(node, "__APPLICATION_NAME__");
@@ -107,11 +108,12 @@
 <%  if (useExistingClient == false) { %>
         // create new drive client
         <%=cid%>.setUseServiceAccount(<%=useServiceAccount%>);
+        <%=cid%>.setUseApplicationClientID(<%=useApplicationClientID%>);
 <%  if (useServiceAccount) { %>
         // setup credentials with service account
 		<%=cid%>.setAccountEmail(<%=accountEmail%>);
 		<%=cid%>.setKeyFile(<%=keyFile%>);
-<% } else { %>
+<% } else if (useApplicationClientID) { %>
         // setup client with client-Id for native applications
 		<%=cid%>.setAccountEmail(<%=userEmail%>);
 		<%=cid%>.setClientSecretFile(<%=clientSecretFile%>);
@@ -151,11 +153,15 @@
 <% if (fileId != null && fileId.trim().isEmpty() == false) { %>
 	    System.out.println("Delete file id=" + <%=fileId%>); 
 	    // delete file in drive by file-Id
-		file_<%=cid%> = <%=cid%>.deleteById(<%=fileId%>, <%=ignoreMissing%>);
+		file_<%=cid%> = <%=cid%>.deleteById(
+			<%=fileId%>, // fileId 
+			<%=ignoreMissing%>); // ignoreMissing
 <% } else if (driveFilePath != null && driveFilePath.trim().isEmpty() == false) { %>
 	    System.out.println("Delete file path=" + <%=driveFilePath%>); 
 	    // delete file in drive by file path
-		file_<%=cid%> = <%=cid%>.deleteByName(<%=driveFilePath%>, <%=ignoreMissing%>);
+		file_<%=cid%> = <%=cid%>.deleteByName(
+			<%=driveFilePath%>, // driveFilePath 
+			<%=ignoreMissing%>); // ignoreMissing
 <% } else { %>
 		throw new Exception("No File-Id or File path provided");
 <% } %>
@@ -169,7 +175,7 @@
 				globalMap.put("<%=cid%>_FILE_MODIFIED_AT", new java.util.Date(file_<%=cid%>.getModifiedDate().getValue()));
 			}
 			globalMap.put("<%=cid%>_FILE_OWNERS", de.jlo.talendcomp.gdrive.DriveHelper.buildChainForUsers(file_<%=cid%>.getOwners(), ","));
-			globalMap.put("<%=cid%>_FILE_SIZE", file_<%=cid%>.getId());
+			globalMap.put("<%=cid%>_FILE_SIZE", file_<%=cid%>.getFileSize());
 			globalMap.put("<%=cid%>_FILE_MIME_TYPE", file_<%=cid%>.getMimeType());
 			globalMap.put("<%=cid%>_FILE_IS_FOLDER", de.jlo.talendcomp.gdrive.DriveHelper.isFolder(file_<%=cid%>));
 			globalMap.put("<%=cid%>_FILE_EXISTS", true);
@@ -208,7 +214,7 @@
 				globalMap.put("<%=cid%>_FILE_MODIFIED_AT", new java.util.Date(file_<%=cid%>.getModifiedDate().getValue()));
 			}
 			globalMap.put("<%=cid%>_FILE_OWNERS", de.jlo.talendcomp.gdrive.DriveHelper.buildChainForUsers(file_<%=cid%>.getOwners(), ","));
-			globalMap.put("<%=cid%>_FILE_SIZE", file_<%=cid%>.getId());
+			globalMap.put("<%=cid%>_FILE_SIZE", file_<%=cid%>.getFileSize());
 			globalMap.put("<%=cid%>_FILE_MIME_TYPE", file_<%=cid%>.getMimeType());
 			globalMap.put("<%=cid%>_FILE_IS_FOLDER", de.jlo.talendcomp.gdrive.DriveHelper.isFolder(file_<%=cid%>));
 			globalMap.put("<%=cid%>_FILE_EXISTS", true);
@@ -253,7 +259,7 @@
 				globalMap.put("<%=cid%>_FILE_MODIFIED_AT", new java.util.Date(file_<%=cid%>.getModifiedDate().getValue()));
 			}
 			globalMap.put("<%=cid%>_FILE_OWNERS", de.jlo.talendcomp.gdrive.DriveHelper.buildChainForUsers(file_<%=cid%>.getOwners(), ","));
-			globalMap.put("<%=cid%>_FILE_SIZE", file_<%=cid%>.getId());
+			globalMap.put("<%=cid%>_FILE_SIZE", file_<%=cid%>.getFileSize());
 			globalMap.put("<%=cid%>_FILE_MIME_TYPE", file_<%=cid%>.getMimeType());
 			globalMap.put("<%=cid%>_FILE_IS_FOLDER", de.jlo.talendcomp.gdrive.DriveHelper.isFolder(file_<%=cid%>));
 			globalMap.put("<%=cid%>_FILE_EXISTS", true);
@@ -297,7 +303,7 @@
 				globalMap.put("<%=cid%>_FILE_MODIFIED_AT", new java.util.Date(file_<%=cid%>.getModifiedDate().getValue()));
 			}
 			globalMap.put("<%=cid%>_FILE_OWNERS", de.jlo.talendcomp.gdrive.DriveHelper.buildChainForUsers(file_<%=cid%>.getOwners(), ","));
-			globalMap.put("<%=cid%>_FILE_SIZE", file_<%=cid%>.getId());
+			globalMap.put("<%=cid%>_FILE_SIZE", file_<%=cid%>.getFileSize());
 			globalMap.put("<%=cid%>_FILE_MIME_TYPE", file_<%=cid%>.getMimeType());
 			globalMap.put("<%=cid%>_FILE_IS_FOLDER", de.jlo.talendcomp.gdrive.DriveHelper.isFolder(file_<%=cid%>));
 		}
@@ -322,11 +328,19 @@
 <% if (fileId != null && fileId.trim().isEmpty() == false) { %>
 	    System.out.println("Download file id=" + <%=fileId%> + " to " + <%=localFolder%>); 
 	    // download the drive file by the file-Id
-		file_<%=cid%> = <%=cid%>.downloadById(<%=fileId%>, <%=localFolder%>, <%=localFileName%>, <%=createDirs%>);
+		file_<%=cid%> = <%=cid%>.downloadById(
+			<%=fileId%>, // fileId 
+			<%=localFolder%>, // localFolder
+			<%=localFileName%>, // localFileName
+			<%=createDirs%>); // createDirs
 <% } else if (driveFilePath != null && driveFilePath.trim().isEmpty() == false) { %>
 	    System.out.println("Get properties from file path=" + <%=driveFilePath%>); 
 	    // download the file by its drive file path
-		file_<%=cid%> = <%=cid%>.downloadByName(<%=driveFilePath%>, <%=localFolder%>, <%=localFileName%>, <%=createDirs%>);
+		file_<%=cid%> = <%=cid%>.downloadByName(
+			<%=driveFilePath%>, // driveFilePath 
+			<%=localFolder%>,  // localFolder
+			<%=localFileName%>, // localFileName
+			<%=createDirs%>);  // createDirs
 <% } else { %>
 		throw new Exception("No File-Id or File path provided");
 <% } %>
@@ -342,7 +356,7 @@
 				globalMap.put("<%=cid%>_FILE_MODIFIED_AT", new java.util.Date(file_<%=cid%>.getModifiedDate().getValue()));
 			}
 			globalMap.put("<%=cid%>_FILE_OWNERS", de.jlo.talendcomp.gdrive.DriveHelper.buildChainForUsers(file_<%=cid%>.getOwners(), ","));
-			globalMap.put("<%=cid%>_FILE_SIZE", file_<%=cid%>.getId());
+			globalMap.put("<%=cid%>_FILE_SIZE", file_<%=cid%>.getFileSize());
 			globalMap.put("<%=cid%>_FILE_MIME_TYPE", file_<%=cid%>.getMimeType());
 			globalMap.put("<%=cid%>_FILE_IS_FOLDER", de.jlo.talendcomp.gdrive.DriveHelper.isFolder(file_<%=cid%>));
 		}
