@@ -13,12 +13,12 @@
     <dependency>
       <groupId>com.google.apis</groupId>
       <artifactId>google-api-services-drive</artifactId>
-      <version>v2-rev154-1.19.0</version>
+      <version>v2-rev162-1.20.0</version>
     </dependency>
     <dependency>
       <groupId>com.google.oauth-client</groupId>
       <artifactId>google-oauth-client-jetty</artifactId>
-      <version>1.19.0</version>
+      <version>1.20.0</version>
       <scope>compile</scope>
     </dependency>
   </dependencies>

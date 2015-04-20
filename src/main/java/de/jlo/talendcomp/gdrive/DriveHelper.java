@@ -42,6 +42,7 @@ import com.google.api.client.json.jackson2.JacksonFactory;
 import com.google.api.client.util.Clock;
 import com.google.api.client.util.store.FileDataStoreFactory;
 import com.google.api.services.drive.Drive;
+import com.google.api.services.drive.Drive.Files.Get;
 import com.google.api.services.drive.DriveScopes;
 import com.google.api.services.drive.model.FileList;
 import com.google.api.services.drive.model.ParentReference;
@@ -67,6 +68,7 @@ public class DriveHelper {
 	public static final String FOLDER_MIME_TYPE = "application/vnd.google-apps.folder";
 	private String lastDownloadedFilePath = null;
 	private long lastDownloadedFileSize = 0;
+	private int httpStatusCode = 200;
 	
 	public static void putIntoCache(String key, DriveHelper client) {
 		clientCache.put(key, client);
@@ -250,10 +252,15 @@ public class DriveHelper {
 		checkPrerequisits();
 		insertFileIntoFolder(newParentId, fileToMove);
 		removeAllParentFolders(fileToMove, newParentId);
-		return driveService
+		Get request = driveService
 				.files()
-				.get(fileToMove.getId())
-				.execute();
+				.get(fileToMove.getId());
+		try {
+			return request.execute();
+		} catch (IOException ioe) {
+			httpStatusCode = request.getLastStatusCode();
+			throw ioe;
+		}
 	}
 	
 	private void removeAllParentFolders(com.google.api.services.drive.model.File file, String exceptParentId) throws Exception {
