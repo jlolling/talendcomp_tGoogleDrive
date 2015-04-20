@@ -24,8 +24,12 @@
 	String timeout = ElementParameterParser.getValue(node, "__TIMEOUT_IN_SEC__");
 	String timeOffset = ElementParameterParser.getValue(node, "__TIME_OFFSET__");
 	String keepClient = ElementParameterParser.getValue(node, "__KEEP_CLIENT__");
+    boolean makeItThreadSave = "true".equals(ElementParameterParser.getValue(node, "__THREAD_SAVE__"));
 	String keepClientName = ElementParameterParser.getValue(node, "__KEEP_CLIENT_KEY__");
-	keepClientName = keepClientName != null && keepClientName.isEmpty() == false ? keepClientName : "\"\"";
+	keepClientName = (keepClientName != null && keepClientName.isEmpty() == false ? keepClientName : "\"\"");
+	if (makeItThreadSave) {
+	    keepClientName = keepClientName + " + Thread.currentThread().getName()";
+	}
 	String mode = ElementParameterParser.getValue(node, "__MODE__");
 	String filterRegex = ElementParameterParser.getValue(node, "__FILE_FILTER_REGEX__");
 	if (filterRegex == null || filterRegex.trim().isEmpty()) {
@@ -135,8 +139,6 @@
 			globalMap.put("<%=cid%>_ERROR_MESSAGE", e.getMessage());
 			throw e;
 		}
-		globalMap.put("<%=cid%>", <%=cid%>);
-		globalMap.put("drive_<%=cid%>", <%=cid%>.getDriveService());
 <%   if ("true".equals(keepClient)) { %>
 		de.jlo.talendcomp.gdrive.DriveHelper.putIntoCache(<%=accountEmail%> + <%=keepClientName%> + "<%=cid%>" + jobName, <%=cid%>);
 <%   } %>
@@ -145,6 +147,8 @@
 	  <%=cid%>.setDriveService((com.google.api.services.drive.Drive) globalMap.get("drive_<%=component%>"));
 <% } // if (useExistingClient == false) %>
    }
+   globalMap.put("<%=cid%>", <%=cid%>);
+   globalMap.put("drive_<%=cid%>", <%=cid%>.getDriveService());
    int countFiles_<%=cid%> = 0; 
 <% if ("DELETE".equals(mode)) { %>
 	// delete a file
