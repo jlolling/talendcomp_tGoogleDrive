@@ -101,6 +101,7 @@
     boolean permReaderSendEmail = "true".equals(ElementParameterParser.getValue(node, "__PERMISSION_AS_READER_SEND_EMAIL__"));
     String permWriter = ElementParameterParser.getValue(node, "__PERMISSION_AS_WRITER__");
     boolean permWriterSendEmail = "true".equals(ElementParameterParser.getValue(node, "__PERMISSION_AS_WRITER_SEND_EMAIL__"));
+	 String maxAttempts = ElementParameterParser.getValue(node, "__MAX_ATTEMPTS__");
 %>
 <%  if (useExistingClient) { %>
     de.jlo.talendcomp.gdrive.DriveHelper <%=cid%> = new de.jlo.talendcomp.gdrive.DriveHelper();
@@ -146,12 +147,15 @@
 		}
 <%    if ("true".equals(keepClient)) { %>
 		de.jlo.talendcomp.gdrive.DriveHelper.putIntoCache(<%=accountEmail%> + <%=keepClientName%> + "<%=cid%>" + jobName, <%=cid%>);
+   } // (<%=cid%> == null)
 <%    } %>
-   }
 <% } // else if (useExistingClient) %>
    globalMap.put("<%=cid%>", <%=cid%>);
    globalMap.put("drive_<%=cid%>", <%=cid%>.getDriveService());
    int countFiles_<%=cid%> = 0; 
+<% if (maxAttempts != null && maxAttempts.trim().isEmpty() == false) { %>
+   <%=cid%>.setMaxRetriesInCaseOfErrors(<%=maxAttempts%>);
+<% } %>
 <% if ("DELETE".equals(mode)) { %>
 	// delete a file
     com.google.api.services.drive.model.File file_<%=cid%> = null;
