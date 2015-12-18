@@ -36,6 +36,8 @@ import java.util.StringTokenizer;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+import org.apache.log4j.Logger;
+
 import com.google.api.client.auth.oauth2.Credential;
 import com.google.api.client.extensions.java6.auth.oauth2.AuthorizationCodeInstalledApp;
 import com.google.api.client.extensions.jetty.auth.oauth2.LocalServerReceiver;
@@ -50,14 +52,17 @@ import com.google.api.client.http.FileContent;
 import com.google.api.client.http.GenericUrl;
 import com.google.api.client.http.HttpRequest;
 import com.google.api.client.http.HttpRequestInitializer;
+import com.google.api.client.http.HttpResponseException;
 import com.google.api.client.http.HttpTransport;
 import com.google.api.client.http.javanet.NetHttpTransport;
+import com.google.api.client.json.GenericJson;
 import com.google.api.client.json.JsonFactory;
 import com.google.api.client.json.jackson2.JacksonFactory;
 import com.google.api.client.util.Clock;
 import com.google.api.client.util.store.FileDataStoreFactory;
 import com.google.api.services.drive.Drive;
 import com.google.api.services.drive.Drive.Files.Get;
+import com.google.api.services.drive.DriveRequest;
 import com.google.api.services.drive.DriveScopes;
 import com.google.api.services.drive.model.FileList;
 import com.google.api.services.drive.model.ParentReference;
@@ -66,6 +71,7 @@ import com.google.api.services.drive.model.User;
 
 public class DriveHelper {
 	
+	private Logger logger = null;
 	private static final Map<String, DriveHelper> clientCache = new HashMap<String, DriveHelper>();
 	private final HttpTransport HTTP_TRANSPORT = new NetHttpTransport();
 	private final JsonFactory JSON_FACTORY = new JacksonFactory();
@@ -83,7 +89,11 @@ public class DriveHelper {
 	public static final String FOLDER_MIME_TYPE = "application/vnd.google-apps.folder";
 	private String lastDownloadedFilePath = null;
 	private long lastDownloadedFileSize = 0;
-	private int httpStatusCode = 200;
+	private int maxRetriesInCaseOfErrors = 1;
+	private int currentAttempt = 0;
+	private long innerLoopWaitInterval = 100;
+	private int errorCode = 0;
+	private String errorMessage = null;
 	
 	public static void putIntoCache(String key, DriveHelper client) {
 		clientCache.put(key, client);
@@ -270,12 +280,7 @@ public class DriveHelper {
 		Get request = driveService
 				.files()
 				.get(fileToMove.getId());
-		try {
-			return request.execute();
-		} catch (IOException ioe) {
-			httpStatusCode = request.getLastStatusCode();
-			throw ioe;
-		}
+		return (com.google.api.services.drive.model.File) execute(request);
 	}
 	
 	private void removeAllParentFolders(com.google.api.services.drive.model.File file, String exceptParentId) throws Exception {
@@ -283,10 +288,9 @@ public class DriveHelper {
 		if (file.getParents() != null) {
 			for (ParentReference pr : file.getParents()) {
 				if (pr.getId().equals(exceptParentId) == false) {
-					driveService
+					execute(driveService
 						.parents()
-						.delete(file.getId(), pr.getId())
-						.execute();
+						.delete(file.getId(), pr.getId()));
 				}
 			}
 		}
@@ -303,10 +307,9 @@ public class DriveHelper {
 		}
 		ParentReference newParent = new ParentReference();
 		newParent.setId(folderId);
-		driveService
+		execute(driveService
 			.parents()
-			.insert(file.getId(), newParent)
-			.execute();
+			.insert(file.getId(), newParent));
 	}
 	
 	/**
@@ -399,7 +402,7 @@ public class DriveHelper {
 			pr.setId(parentId);
 			folder.setParents(Arrays.asList(pr));
 		}
-		return driveService.files().insert(folder).execute();
+		return (com.google.api.services.drive.model.File) execute(driveService.files().insert(folder));
 	}
 		
 	/**
@@ -445,7 +448,7 @@ public class DriveHelper {
 			throw new Exception("File " + existingFile.getTitle() + " already exists in the Drive. File-Id=" + existingFile.getId());
 		}
 		if (existingFile == null) {
-			System.out.println("Upload new file " + localFile.getAbsolutePath());
+			info("Upload new file " + localFile.getAbsolutePath());
 			String parentId = null;
 			if (driveFolderPath != null && driveFolderPath.trim().isEmpty() == false) {
 				com.google.api.services.drive.model.File parentFolder = getFolder(driveFolderPath, createDirIfNecessary);
@@ -473,14 +476,14 @@ public class DriveHelper {
 				
 				@Override
 				public void progressChanged(MediaHttpUploader uploader) throws IOException {
-					System.out.println("File status: " + uploader.getUploadState());
-					System.out.println("Bytes uploaded:" + uploader.getNumBytesUploaded());
+					info("File status: " + uploader.getUploadState());
+					info("Bytes uploaded:" + uploader.getNumBytesUploaded());
 				}
 				
 			});
-		    return insertRequest.execute();
+		    return (com.google.api.services.drive.model.File) execute(insertRequest);
 		} else {
-			System.out.println("Upload existing file " + localFile.getAbsolutePath());
+			info("Upload existing file " + localFile.getAbsolutePath());
 		    String mimeType = getMimeType(localFilePath);
 		    FileContent mediaContent = new FileContent(mimeType, localFile);
 		    Drive.Files.Update updateRequest = driveService
@@ -492,12 +495,12 @@ public class DriveHelper {
 				
 				@Override
 				public void progressChanged(MediaHttpUploader uploader) throws IOException {
-					System.out.println("File status: " + uploader.getUploadState());
-					System.out.println("Bytes uploaded:" + uploader.getNumBytesUploaded());
+					info("File status: " + uploader.getUploadState());
+					info("Bytes uploaded:" + uploader.getNumBytesUploaded());
 				}
 				
 			});
-		    return updateRequest.execute();
+		    return (com.google.api.services.drive.model.File) execute(updateRequest);
 		}
 	}
 	
@@ -537,10 +540,9 @@ public class DriveHelper {
 		} else if ((localFolder.endsWith("/") || localFolder.endsWith("\\")) == false) {
 			localFolder = localFolder + "/";
 		}
-		com.google.api.services.drive.model.File file = driveService
+		com.google.api.services.drive.model.File file = (com.google.api.services.drive.model.File) execute(driveService
 				.files()
-				.get(fileId)
-				.execute();
+				.get(fileId));
 		String downLoadFilePath = null;
 		if (newFileName != null && newFileName.trim().isEmpty() == false) {
 			downLoadFilePath = localFolder + newFileName;
@@ -587,9 +589,9 @@ public class DriveHelper {
 		}
 		com.google.api.services.drive.model.File file = getById(fileId);
 		if (file != null) {
-			driveService.files()
-				.delete(file.getId())
-				.execute();
+			execute(driveService
+					.files()
+					.delete(file.getId()));
 			return file;
 		} else {
 			if (ignoreMissing == false) {
@@ -662,10 +664,9 @@ public class DriveHelper {
 			throw new IllegalArgumentException("fileId cannot be null or empty");
 		}
 		try {
-			com.google.api.services.drive.model.File file = driveService
+			com.google.api.services.drive.model.File file = (com.google.api.services.drive.model.File) execute(driveService
 					.files()
-					.get(fileId)
-					.execute();
+					.get(fileId));
 			return file;
 		} catch (com.google.api.client.googleapis.json.GoogleJsonResponseException ge) {
 			if (ge.getStatusCode() == 404) {
@@ -696,19 +697,19 @@ public class DriveHelper {
 
 				@Override
 				public void progressChanged(MediaHttpDownloader downloader)	throws IOException {
-					System.out.println("File status: " + downloader.getDownloadState());
-					System.out.println("Bytes downloaded:" + downloader.getNumBytesDownloaded());
+					info("File status: " + downloader.getDownloadState());
+					info("Bytes downloaded:" + downloader.getNumBytesDownloaded());
 				}
 		    	
 		    });
 		    downloader.download(new GenericUrl(fileDownloadUrl), fileOut);
-		    lastDownloadedFilePath = localFile.getAbsolutePath();
-		    lastDownloadedFileSize = localFile.length();
 			if (fileOut != null) {
 				fileOut.flush();
 				fileOut.close();
 				fileOut = null;
 			}
+		    lastDownloadedFilePath = localFile.getAbsolutePath();
+		    lastDownloadedFileSize = localFile.length();
 		} catch (Exception e) {
 			if (fileOut != null) {
 				fileOut.flush();
@@ -845,7 +846,7 @@ public class DriveHelper {
 		List<com.google.api.services.drive.model.File> resultList = new ArrayList<com.google.api.services.drive.model.File>();
 		do {
 			try {
-				FileList files = request.execute();
+				FileList files = (FileList) execute(request);
 				if (pattern != null) { // apply the local filter
 					Matcher matcher = null;
 					for (com.google.api.services.drive.model.File file : files.getItems()) {
@@ -878,11 +879,10 @@ public class DriveHelper {
 						p.setType("user");
 						p.setValue(email);
 						p.setRole(role);
-						driveService
+						execute(driveService
 							.permissions()
 							.insert(fileId, p)
-							.setSendNotificationEmails(sendEmailNotification)
-							.execute();
+							.setSendNotificationEmails(sendEmailNotification));
 					}
 				}
 			} else {
@@ -1123,6 +1123,106 @@ public class DriveHelper {
 
 	public void setUseApplicationClientID(boolean useApplicationClientID) {
 		this.useApplicationClientID = useApplicationClientID;
+	}
+
+	public void info(String message) {
+		if (logger != null) {
+			logger.info(message);
+		} else {
+			System.out.println("INFO:" + message);
+		}
+	}
+	
+	public void debug(String message) {
+		if (logger != null) {
+			logger.debug(message);
+		} else {
+			System.out.println("DEBUG:" + message);
+		}
+	}
+
+	public void warn(String message) {
+		if (logger != null) {
+			logger.warn(message);
+		} else {
+			System.err.println("WARN:" + message);
+		}
+	}
+	
+	public void error(String message) {
+		error(message, null);
+	}
+
+	public void error(String message, Exception e) {
+		if (logger != null) {
+			if (e != null) {
+				logger.error(message, e);
+			} else {
+				logger.error(message);
+			}
+		} else {
+			System.err.println("ERROR:" + message);
+		}
+	}
+
+	public void setLogger(Logger logger) {
+		this.logger = logger;
+	}
+
+	/**
+	 * sets the maximum attempts to execute a request in case of errors
+	 * @param maxRetriesInCaseOfErrors
+	 */
+	public void setMaxRetriesInCaseOfErrors(Integer maxRetriesInCaseOfErrors) {
+		if (maxRetriesInCaseOfErrors != null) {
+			this.maxRetriesInCaseOfErrors = maxRetriesInCaseOfErrors;
+		}
+	}
+
+	private com.google.api.client.json.GenericJson execute(DriveRequest<?> request) throws IOException {
+		try {
+			Thread.sleep(innerLoopWaitInterval);
+		} catch (InterruptedException e) {}
+		com.google.api.client.json.GenericJson response = null;
+		int waitTime = 1000;
+		for (currentAttempt = 0; currentAttempt < maxRetriesInCaseOfErrors; currentAttempt++) {
+			errorCode = 0;
+			try {
+				response = (GenericJson) request.execute();
+				break;
+			} catch (IOException ge) {
+				warn("Got error:" + ge.getMessage());
+				if (ge instanceof HttpResponseException) {
+					errorCode = ((HttpResponseException) ge).getStatusCode();
+					errorMessage = ((HttpResponseException) ge).getMessage();
+				}
+				if (Util.canBeIgnored(ge) == false) {
+					error("Stop processing because of the error does not allow a retry.");
+					throw ge;
+				}
+				if (currentAttempt == (maxRetriesInCaseOfErrors - 1)) {
+					error("All repetitions of the request failed:" + ge.getMessage(), ge);
+					throw ge;
+				} else {
+					// wait
+					try {
+						info("Retry request in " + waitTime + "ms");
+						Thread.sleep(waitTime);
+					} catch (InterruptedException ie) {}
+					int random = (int) Math.random() * 500;
+					waitTime = (waitTime * 2) + random;
+				}
+			}
+		}
+		return response;
+	}
+
+	public int getLastHttpStatusCode() {
+		return errorCode;
+	}
+
+	public String getLastHttpStatusMessage() {
+		return errorMessage;
 	}
 
 }
