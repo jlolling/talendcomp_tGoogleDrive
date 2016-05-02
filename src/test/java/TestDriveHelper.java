@@ -3,7 +3,7 @@ import java.io.IOException;
 import com.google.api.services.drive.model.File;
 import com.google.api.services.drive.model.ParentReference;
 
-import de.jlo.talendcomp.gdrive.DriveHelper;
+import de.jlo.talendcomp.google.drive.DriveHelper;
 
 public class TestDriveHelper {
 
@@ -134,9 +134,9 @@ public class TestDriveHelper {
 //		System.out.println("downloadUrl=" + f.getDownloadUrl());
 		System.out.println("mime.type=" + f.getMimeType());
 		System.out.println("modified at=" + f.getModifiedDate());
-		System.out.println("owners=" + de.jlo.talendcomp.gdrive.DriveHelper.buildChainForUsers(f.getOwners(), ","));
-		System.out.println("readers=" + de.jlo.talendcomp.gdrive.DriveHelper.buildChainForPermissionReaders(f.getPermissions(), ","));
-		System.out.println("writers=" + de.jlo.talendcomp.gdrive.DriveHelper.buildChainForPermissionWriters(f.getPermissions(), ","));
+		System.out.println("owners=" + de.jlo.talendcomp.google.drive.DriveHelper.buildChainForUsers(f.getOwners(), ","));
+		System.out.println("readers=" + de.jlo.talendcomp.google.drive.DriveHelper.buildChainForPermissionReaders(f.getPermissions(), ","));
+		System.out.println("writers=" + de.jlo.talendcomp.google.drive.DriveHelper.buildChainForPermissionWriters(f.getPermissions(), ","));
 		if (f.getParents() != null) {
 			System.out.print("parents=");
 			for (ParentReference r : f.getParents()) {
