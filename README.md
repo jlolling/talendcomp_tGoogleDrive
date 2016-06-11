@@ -3,3 +3,5 @@
 * Can handle Service Accounts
 * Can handle network problems and Google Server errors by retrying the requests
 * Can make notifications after uploading files and assigning user rights.
+
+This component is available on Talend Exchange: https://exchange.talend.com
