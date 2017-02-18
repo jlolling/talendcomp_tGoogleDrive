@@ -113,35 +113,41 @@
 	<%=cid%>.setDriveService((com.google.api.services.drive.Drive) globalMap.get("drive_<%=component%>"));
 <%  } else { %>
     // use own client
-<%    if ("true".equals(keepClient)) { %>
-	de.cimt.talendcomp.google.drive.DriveHelper <%=cid%> = de.cimt.talendcomp.google.drive.DriveHelper.getFromCache(<%=accountEmail%> + <%=keepClientName%> + "<%=cid%>" + jobName);
+<%		if ("true".equals(keepClient)) { 
+			String email = null;
+			if (useServiceAccount) {
+				email = accountEmail;
+			} else {
+				email = userEmail;
+			} %>
+	de.cimt.talendcomp.google.drive.DriveHelper <%=cid%> = de.cimt.talendcomp.google.drive.DriveHelper.getFromCache(<%=email%> + <%=keepClientName%> + "<%=cid%>" + jobName);
 	if (<%=cid%> == null) {
 		<%=cid%> = new de.cimt.talendcomp.google.drive.DriveHelper();
-<%    } else { %>
+<%		} else { %>
 	    de.cimt.talendcomp.google.drive.DriveHelper <%=cid%> = new de.cimt.talendcomp.google.drive.DriveHelper();
-<%    } %>
+<%		} %>
         // create new drive client
         <%=cid%>.setUseServiceAccount(<%=useServiceAccount%>);
         <%=cid%>.setUseApplicationClientID(<%=useApplicationClientID%>);
-<%    if (useServiceAccount) { %>
+<%		if (useServiceAccount) { %>
         // setup credentials with service account
 		<%=cid%>.setAccountEmail(<%=accountEmail%>);
 		<%=cid%>.setKeyFile(<%=keyFile%>);
-<%    } else if (useApplicationClientID) { %>
+<%		} else if (useApplicationClientID) { %>
         // setup client with client-Id for native applications
 		<%=cid%>.setAccountEmail(<%=userEmail%>);
 		<%=cid%>.setClientSecretFile(<%=clientSecretFile%>);
-<%    } %> 
-<%    if (timeout != null && timeout.trim().isEmpty() == false) { %>
+<%		} %> 
+<%		if (timeout != null && timeout.trim().isEmpty() == false) { %>
 		<%=cid%>.setTimeoutInSeconds(<%=timeout%>);
-<%    } %>
-<%    if (timeOffset != null && timeOffset.trim().isEmpty() == false) { %>
+<%		} %>
+<%		if (timeOffset != null && timeOffset.trim().isEmpty() == false) { %>
         // prevent token validation problems caused by time differences between own host and Google
 		<%=cid%>.setTimeMillisOffsetToPast(<%=timeOffset%>);
-<%    } %>
-<%    if (applicationName != null && applicationName.trim().isEmpty() == false) { %>
+<%		} %>
+<%		if (applicationName != null && applicationName.trim().isEmpty() == false) { %>
 		<%=cid%>.setApplicationName(<%=applicationName%>);
-<%    } %>
+<%		} %>
 		try {
 		    // initialize drive client
 			<%=cid%>.initializeClient();
@@ -149,8 +155,14 @@
 			globalMap.put("<%=cid%>_ERROR_MESSAGE", e.getMessage());
 			throw e;
 		}
-<%    if ("true".equals(keepClient)) { %>
-		de.cimt.talendcomp.google.drive.DriveHelper.putIntoCache(<%=accountEmail%> + <%=keepClientName%> + "<%=cid%>" + jobName, <%=cid%>);
+<%    if ("true".equals(keepClient)) {
+			String email = null;
+			if (useServiceAccount) {
+				email = accountEmail;
+			} else {
+				email = userEmail;
+			} %>
+		de.cimt.talendcomp.google.drive.DriveHelper.putIntoCache(<%=email%> + <%=keepClientName%> + "<%=cid%>" + jobName, <%=cid%>);
    } // (<%=cid%> == null)
 <%    } %>
 <% } // else if (useExistingClient) %>
@@ -194,6 +206,7 @@
 			globalMap.put("<%=cid%>_FILE_SIZE", file_<%=cid%>.getFileSize());
 			globalMap.put("<%=cid%>_FILE_MIME_TYPE", file_<%=cid%>.getMimeType());
 			globalMap.put("<%=cid%>_FILE_IS_FOLDER", de.cimt.talendcomp.google.drive.DriveHelper.isFolder(file_<%=cid%>));
+			globalMap.put("<%=cid%>_PARENT_FOLDER_ID", de.cimt.talendcomp.google.drive.DriveHelper.getFirstParentId(file_<%=cid%>));
 			globalMap.put("<%=cid%>_FILE_EXISTS", true);
 		} else {
 			globalMap.put("<%=cid%>_FILE_EXISTS", false);
@@ -235,6 +248,7 @@
 			globalMap.put("<%=cid%>_FILE_SIZE", file_<%=cid%>.getFileSize());
 			globalMap.put("<%=cid%>_FILE_MIME_TYPE", file_<%=cid%>.getMimeType());
 			globalMap.put("<%=cid%>_FILE_IS_FOLDER", de.cimt.talendcomp.google.drive.DriveHelper.isFolder(file_<%=cid%>));
+			globalMap.put("<%=cid%>_PARENT_FOLDER_ID", de.cimt.talendcomp.google.drive.DriveHelper.getFirstParentId(file_<%=cid%>));
 			globalMap.put("<%=cid%>_FILE_EXISTS", true);
 		} else {
 			globalMap.put("<%=cid%>_FILE_EXISTS", false);
@@ -283,6 +297,7 @@
 			globalMap.put("<%=cid%>_FILE_SIZE", file_<%=cid%>.getFileSize());
 			globalMap.put("<%=cid%>_FILE_MIME_TYPE", file_<%=cid%>.getMimeType());
 			globalMap.put("<%=cid%>_FILE_IS_FOLDER", de.cimt.talendcomp.google.drive.DriveHelper.isFolder(file_<%=cid%>));
+			globalMap.put("<%=cid%>_PARENT_FOLDER_ID", de.cimt.talendcomp.google.drive.DriveHelper.getFirstParentId(file_<%=cid%>));
 			globalMap.put("<%=cid%>_FILE_EXISTS", true);
 		} else {
 			globalMap.put("<%=cid%>_FILE_EXISTS", false);
@@ -330,6 +345,7 @@
 			globalMap.put("<%=cid%>_FILE_SIZE", file_<%=cid%>.getFileSize());
 			globalMap.put("<%=cid%>_FILE_MIME_TYPE", file_<%=cid%>.getMimeType());
 			globalMap.put("<%=cid%>_FILE_IS_FOLDER", de.cimt.talendcomp.google.drive.DriveHelper.isFolder(file_<%=cid%>));
+			globalMap.put("<%=cid%>_PARENT_FOLDER_ID", de.cimt.talendcomp.google.drive.DriveHelper.getFirstParentId(file_<%=cid%>));
 		}
 <%  if (deleteInFs) { %>
         java.io.File f = new java.io.File(localUploadFile);
@@ -387,6 +403,7 @@
 			globalMap.put("<%=cid%>_FILE_SIZE", file_<%=cid%>.getFileSize());
 			globalMap.put("<%=cid%>_FILE_MIME_TYPE", file_<%=cid%>.getMimeType());
 			globalMap.put("<%=cid%>_FILE_IS_FOLDER", de.cimt.talendcomp.google.drive.DriveHelper.isFolder(file_<%=cid%>));
+			globalMap.put("<%=cid%>_PARENT_FOLDER_ID", de.cimt.talendcomp.google.drive.DriveHelper.getFirstParentId(file_<%=cid%>));
 <%	if (deleteInDrive) { %>
 	        System.out.println("Delete downloaded file with id=" + file_<%=cid%>.getId() + " from drive");
 			<%=cid%>.deleteById(file_<%=cid%>.getId(), false);
@@ -436,6 +453,7 @@
 		globalMap.put("<%=cid%>_FILE_SIZE", file_<%=cid%>.getId());
 		globalMap.put("<%=cid%>_FILE_MIME_TYPE", file_<%=cid%>.getMimeType());
 		globalMap.put("<%=cid%>_FILE_IS_FOLDER", de.cimt.talendcomp.google.drive.DriveHelper.isFolder(file_<%=cid%>));
+		globalMap.put("<%=cid%>_PARENT_FOLDER_ID", de.cimt.talendcomp.google.drive.DriveHelper.getFirstParentId(file_<%=cid%>));
 <% } %>	
 <% } // else if ("LIST".equals(mode)) %>
 <% if ("CLIENT".equals(mode) == false && filesRowName != null) { %>
@@ -456,5 +474,6 @@
 		<%=filesRowName%>.FILE_SIZE = file_<%=cid%>.getFileSize();
 		<%=filesRowName%>.FILE_OWNERS = de.cimt.talendcomp.google.drive.DriveHelper.buildChainForUsers(file_<%=cid%>.getOwners(), ",");
 		<%=filesRowName%>.FILE_IS_FOLDER = de.cimt.talendcomp.google.drive.DriveHelper.isFolder(file_<%=cid%>);
+		<%=filesRowName%>.PARENT_FOLDER_ID = de.cimt.talendcomp.google.drive.DriveHelper.getFirstParentId(file_<%=cid%>);
 <% } %>	
 	
