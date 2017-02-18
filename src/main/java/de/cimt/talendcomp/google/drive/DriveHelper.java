@@ -749,7 +749,8 @@ public class DriveHelper {
 			Date lastModifyedUntil, 
 			String owner, 
 			boolean includeFolders,
-			String parentFolder) throws Exception {
+			String parentFolder,
+			String mimeType) throws Exception {
 		checkPrerequisits();
 		// prepare the local filter
 		Pattern pattern = null;
@@ -808,6 +809,14 @@ public class DriveHelper {
 			}
 			q.append("mimeType != '");
 			q.append(FOLDER_MIME_TYPE);
+			q.append("'");
+		}
+		if (mimeType != null) {
+			if (q.length() > 0) {
+				q.append(" and ");
+			}
+			q.append("mimeType = '");
+			q.append(mimeType);
 			q.append("'");
 		}
 		// exclude trashed files

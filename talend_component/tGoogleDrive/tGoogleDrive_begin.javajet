@@ -69,6 +69,10 @@
 	if (owner == null || owner.trim().isEmpty()) {
 		owner = "null";
 	}
+	String mimeType = ElementParameterParser.getValue(node, "__MIME_TYPE__");
+	if (mimeType == null || mimeType.trim().isEmpty()) {
+		mimeType = "null";
+	}
 	String remoteSearchModifiedFrom = ElementParameterParser.getValue(node, "__REMOTE_FILTER_MODIFYIED_FROM__");
 	if (remoteSearchModifiedFrom == null || remoteSearchModifiedFrom.trim().isEmpty()) {
 		remoteSearchModifiedFrom = "null";
@@ -101,7 +105,7 @@
     boolean permReaderSendEmail = "true".equals(ElementParameterParser.getValue(node, "__PERMISSION_AS_READER_SEND_EMAIL__"));
     String permWriter = ElementParameterParser.getValue(node, "__PERMISSION_AS_WRITER__");
     boolean permWriterSendEmail = "true".equals(ElementParameterParser.getValue(node, "__PERMISSION_AS_WRITER_SEND_EMAIL__"));
-	 String maxAttempts = ElementParameterParser.getValue(node, "__MAX_ATTEMPTS__");
+	String maxAttempts = ElementParameterParser.getValue(node, "__MAX_ATTEMPTS__");
 %>
 <%  if (useExistingClient) { %>
     de.cimt.talendcomp.google.drive.DriveHelper <%=cid%> = new de.cimt.talendcomp.google.drive.DriveHelper();
@@ -412,7 +416,8 @@
 			<%=remoteSearchModifiedTo%>, // remoteSearchModifiedTo
 			<%=owner%>, // owner
 			<%=includeFolderInResult%>, // includeFolderInResult
-			<%=remoteSearchPath%>);  // remoteSearchPath
+			<%=remoteSearchPath%>, // remoteSearchPath
+			<%=mimeType%>);  // mime-type
 	} catch (Exception e) {
 		globalMap.put("<%=cid%>_ERROR_MESSAGE", e.getMessage());
 		throw e;
