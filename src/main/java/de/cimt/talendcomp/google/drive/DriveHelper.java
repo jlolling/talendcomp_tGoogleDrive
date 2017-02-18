@@ -332,6 +332,9 @@ public class DriveHelper {
 				pathList.add(f);
 			}
 		}
+		if (pathList.isEmpty()) {
+			pathList.add("/");
+		}
 		return getFolder(allFolders, null, pathList, 0, createIfNotExists);
 	}
 	
@@ -368,6 +371,15 @@ public class DriveHelper {
 			}
 		}
 		return child;
+	}
+	
+	public static String getFirstParentId(com.google.api.services.drive.model.File file) {
+		List<ParentReference> parentRefs = file.getParents();
+		if (parentRefs != null && parentRefs.size() > 0) {
+			return parentRefs.get(0).getId();
+		} else {
+			return null;
+		}
 	}
 	
 	private List<com.google.api.services.drive.model.File> getChildFolders(List<com.google.api.services.drive.model.File> allFolders, String parentId) {
@@ -815,9 +827,15 @@ public class DriveHelper {
 			if (q.length() > 0) {
 				q.append(" and ");
 			}
-			q.append("mimeType = '");
+			q.append("(mimeType = '");
 			q.append(mimeType);
 			q.append("'");
+			if (includeFolders) {
+				q.append(" or mimeType = '");
+				q.append(FOLDER_MIME_TYPE);
+				q.append("'");
+			}
+			q.append(")");
 		}
 		// exclude trashed files
 		if (q.length() > 0) {
