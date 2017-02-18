@@ -9,16 +9,16 @@
 	" 
 %>
 <% 
-   CodeGeneratorArgument codeGenArgument = (CodeGeneratorArgument) argument;
-   INode node = (INode) codeGenArgument.getArgument();
-   String cid = node.getUniqueName();
-   boolean useExistingClient = "true".equals(ElementParameterParser.getValue(node, "__USE_EXISTING_CLIENT__"));
-   String component = ElementParameterParser.getValue(node, "__DRIVE_COMPONENT__");
-   boolean useServiceAccount = "SERVICE_ACCOUNT".equals(ElementParameterParser.getValue(node, "__AUTHENTICATION_METHOD__"));
-   boolean useApplicationClientID = "APPLICATION_CLIENT_ID".equals(ElementParameterParser.getValue(node, "__AUTHENTICATION_METHOD__"));
-   String clientSecretFile = ElementParameterParser.getValue(node, "__CLIENT_SECRET_FILE__");
-   String userEmail = ElementParameterParser.getValue(node, "__USER_ACCOUNT_EMAIL__");
-   String applicationName = ElementParameterParser.getValue(node, "__APPLICATION_NAME__");
+	CodeGeneratorArgument codeGenArgument = (CodeGeneratorArgument) argument;
+	INode node = (INode) codeGenArgument.getArgument();
+	String cid = node.getUniqueName();
+	boolean useExistingClient = "true".equals(ElementParameterParser.getValue(node, "__USE_EXISTING_CLIENT__"));
+	String component = ElementParameterParser.getValue(node, "__DRIVE_COMPONENT__");
+	boolean useServiceAccount = "SERVICE_ACCOUNT".equals(ElementParameterParser.getValue(node, "__AUTHENTICATION_METHOD__"));
+	boolean useApplicationClientID = "APPLICATION_CLIENT_ID".equals(ElementParameterParser.getValue(node, "__AUTHENTICATION_METHOD__"));
+	String clientSecretFile = ElementParameterParser.getValue(node, "__CLIENT_SECRET_FILE__");
+	String userEmail = ElementParameterParser.getValue(node, "__USER_ACCOUNT_EMAIL__");
+	String applicationName = ElementParameterParser.getValue(node, "__APPLICATION_NAME__");
 	String accountEmail = ElementParameterParser.getValue(node, "__SERVICE_ACCOUNT_EMAIL__");
 	String keyFile = ElementParameterParser.getValue(node, "__KEY_FILE__");
 	String timeout = ElementParameterParser.getValue(node, "__TIMEOUT_IN_SEC__");
@@ -104,17 +104,17 @@
 	 String maxAttempts = ElementParameterParser.getValue(node, "__MAX_ATTEMPTS__");
 %>
 <%  if (useExistingClient) { %>
-    de.jlo.talendcomp.google.drive.DriveHelper <%=cid%> = new de.jlo.talendcomp.google.drive.DriveHelper();
+    de.cimt.talendcomp.google.drive.DriveHelper <%=cid%> = new de.cimt.talendcomp.google.drive.DriveHelper();
     // use existing drive client
 	<%=cid%>.setDriveService((com.google.api.services.drive.Drive) globalMap.get("drive_<%=component%>"));
 <%  } else { %>
     // use own client
 <%    if ("true".equals(keepClient)) { %>
-	de.jlo.talendcomp.google.drive.DriveHelper <%=cid%> = de.jlo.talendcomp.google.drive.DriveHelper.getFromCache(<%=accountEmail%> + <%=keepClientName%> + "<%=cid%>" + jobName);
+	de.cimt.talendcomp.google.drive.DriveHelper <%=cid%> = de.cimt.talendcomp.google.drive.DriveHelper.getFromCache(<%=accountEmail%> + <%=keepClientName%> + "<%=cid%>" + jobName);
 	if (<%=cid%> == null) {
-		<%=cid%> = new de.jlo.talendcomp.google.drive.DriveHelper();
+		<%=cid%> = new de.cimt.talendcomp.google.drive.DriveHelper();
 <%    } else { %>
-	    de.jlo.talendcomp.google.drive.DriveHelper <%=cid%> = new de.jlo.talendcomp.google.drive.DriveHelper();
+	    de.cimt.talendcomp.google.drive.DriveHelper <%=cid%> = new de.cimt.talendcomp.google.drive.DriveHelper();
 <%    } %>
         // create new drive client
         <%=cid%>.setUseServiceAccount(<%=useServiceAccount%>);
@@ -146,7 +146,7 @@
 			throw e;
 		}
 <%    if ("true".equals(keepClient)) { %>
-		de.jlo.talendcomp.google.drive.DriveHelper.putIntoCache(<%=accountEmail%> + <%=keepClientName%> + "<%=cid%>" + jobName, <%=cid%>);
+		de.cimt.talendcomp.google.drive.DriveHelper.putIntoCache(<%=accountEmail%> + <%=keepClientName%> + "<%=cid%>" + jobName, <%=cid%>);
    } // (<%=cid%> == null)
 <%    } %>
 <% } // else if (useExistingClient) %>
@@ -186,10 +186,10 @@
 			if (file_<%=cid%>.getModifiedDate() != null) {
 				globalMap.put("<%=cid%>_FILE_MODIFIED_AT", new java.util.Date(file_<%=cid%>.getModifiedDate().getValue()));
 			}
-			globalMap.put("<%=cid%>_FILE_OWNERS", de.jlo.talendcomp.google.drive.DriveHelper.buildChainForUsers(file_<%=cid%>.getOwners(), ","));
+			globalMap.put("<%=cid%>_FILE_OWNERS", de.cimt.talendcomp.google.drive.DriveHelper.buildChainForUsers(file_<%=cid%>.getOwners(), ","));
 			globalMap.put("<%=cid%>_FILE_SIZE", file_<%=cid%>.getFileSize());
 			globalMap.put("<%=cid%>_FILE_MIME_TYPE", file_<%=cid%>.getMimeType());
-			globalMap.put("<%=cid%>_FILE_IS_FOLDER", de.jlo.talendcomp.google.drive.DriveHelper.isFolder(file_<%=cid%>));
+			globalMap.put("<%=cid%>_FILE_IS_FOLDER", de.cimt.talendcomp.google.drive.DriveHelper.isFolder(file_<%=cid%>));
 			globalMap.put("<%=cid%>_FILE_EXISTS", true);
 		} else {
 			globalMap.put("<%=cid%>_FILE_EXISTS", false);
@@ -227,10 +227,10 @@
 			if (file_<%=cid%>.getModifiedDate() != null) {
 				globalMap.put("<%=cid%>_FILE_MODIFIED_AT", new java.util.Date(file_<%=cid%>.getModifiedDate().getValue()));
 			}
-			globalMap.put("<%=cid%>_FILE_OWNERS", de.jlo.talendcomp.google.drive.DriveHelper.buildChainForUsers(file_<%=cid%>.getOwners(), ","));
+			globalMap.put("<%=cid%>_FILE_OWNERS", de.cimt.talendcomp.google.drive.DriveHelper.buildChainForUsers(file_<%=cid%>.getOwners(), ","));
 			globalMap.put("<%=cid%>_FILE_SIZE", file_<%=cid%>.getFileSize());
 			globalMap.put("<%=cid%>_FILE_MIME_TYPE", file_<%=cid%>.getMimeType());
-			globalMap.put("<%=cid%>_FILE_IS_FOLDER", de.jlo.talendcomp.google.drive.DriveHelper.isFolder(file_<%=cid%>));
+			globalMap.put("<%=cid%>_FILE_IS_FOLDER", de.cimt.talendcomp.google.drive.DriveHelper.isFolder(file_<%=cid%>));
 			globalMap.put("<%=cid%>_FILE_EXISTS", true);
 		} else {
 			globalMap.put("<%=cid%>_FILE_EXISTS", false);
@@ -275,10 +275,10 @@
 			if (file_<%=cid%>.getModifiedDate() != null) {
 				globalMap.put("<%=cid%>_FILE_MODIFIED_AT", new java.util.Date(file_<%=cid%>.getModifiedDate().getValue()));
 			}
-			globalMap.put("<%=cid%>_FILE_OWNERS", de.jlo.talendcomp.google.drive.DriveHelper.buildChainForUsers(file_<%=cid%>.getOwners(), ","));
+			globalMap.put("<%=cid%>_FILE_OWNERS", de.cimt.talendcomp.google.drive.DriveHelper.buildChainForUsers(file_<%=cid%>.getOwners(), ","));
 			globalMap.put("<%=cid%>_FILE_SIZE", file_<%=cid%>.getFileSize());
 			globalMap.put("<%=cid%>_FILE_MIME_TYPE", file_<%=cid%>.getMimeType());
-			globalMap.put("<%=cid%>_FILE_IS_FOLDER", de.jlo.talendcomp.google.drive.DriveHelper.isFolder(file_<%=cid%>));
+			globalMap.put("<%=cid%>_FILE_IS_FOLDER", de.cimt.talendcomp.google.drive.DriveHelper.isFolder(file_<%=cid%>));
 			globalMap.put("<%=cid%>_FILE_EXISTS", true);
 		} else {
 			globalMap.put("<%=cid%>_FILE_EXISTS", false);
@@ -322,10 +322,10 @@
 			if (file_<%=cid%>.getModifiedDate() != null) {
 				globalMap.put("<%=cid%>_FILE_MODIFIED_AT", new java.util.Date(file_<%=cid%>.getModifiedDate().getValue()));
 			}
-			globalMap.put("<%=cid%>_FILE_OWNERS", de.jlo.talendcomp.google.drive.DriveHelper.buildChainForUsers(file_<%=cid%>.getOwners(), ","));
+			globalMap.put("<%=cid%>_FILE_OWNERS", de.cimt.talendcomp.google.drive.DriveHelper.buildChainForUsers(file_<%=cid%>.getOwners(), ","));
 			globalMap.put("<%=cid%>_FILE_SIZE", file_<%=cid%>.getFileSize());
 			globalMap.put("<%=cid%>_FILE_MIME_TYPE", file_<%=cid%>.getMimeType());
-			globalMap.put("<%=cid%>_FILE_IS_FOLDER", de.jlo.talendcomp.google.drive.DriveHelper.isFolder(file_<%=cid%>));
+			globalMap.put("<%=cid%>_FILE_IS_FOLDER", de.cimt.talendcomp.google.drive.DriveHelper.isFolder(file_<%=cid%>));
 		}
 <%  if (deleteInFs) { %>
         java.io.File f = new java.io.File(localUploadFile);
@@ -379,10 +379,10 @@
 			if (file_<%=cid%>.getModifiedDate() != null) {
 				globalMap.put("<%=cid%>_FILE_MODIFIED_AT", new java.util.Date(file_<%=cid%>.getModifiedDate().getValue()));
 			}
-			globalMap.put("<%=cid%>_FILE_OWNERS", de.jlo.talendcomp.google.drive.DriveHelper.buildChainForUsers(file_<%=cid%>.getOwners(), ","));
+			globalMap.put("<%=cid%>_FILE_OWNERS", de.cimt.talendcomp.google.drive.DriveHelper.buildChainForUsers(file_<%=cid%>.getOwners(), ","));
 			globalMap.put("<%=cid%>_FILE_SIZE", file_<%=cid%>.getFileSize());
 			globalMap.put("<%=cid%>_FILE_MIME_TYPE", file_<%=cid%>.getMimeType());
-			globalMap.put("<%=cid%>_FILE_IS_FOLDER", de.jlo.talendcomp.google.drive.DriveHelper.isFolder(file_<%=cid%>));
+			globalMap.put("<%=cid%>_FILE_IS_FOLDER", de.cimt.talendcomp.google.drive.DriveHelper.isFolder(file_<%=cid%>));
 <%	if (deleteInDrive) { %>
 	        System.out.println("Delete downloaded file with id=" + file_<%=cid%>.getId() + " from drive");
 			<%=cid%>.deleteById(file_<%=cid%>.getId(), false);
@@ -427,10 +427,10 @@
 		if (file_<%=cid%>.getModifiedDate() != null) {
 			globalMap.put("<%=cid%>_FILE_MODIFIED_AT", new java.util.Date(file_<%=cid%>.getModifiedDate().getValue()));
 		}
-		globalMap.put("<%=cid%>_FILE_OWNERS", de.jlo.talendcomp.google.drive.DriveHelper.buildChainForUsers(file_<%=cid%>.getOwners(), ","));
+		globalMap.put("<%=cid%>_FILE_OWNERS", de.cimt.talendcomp.google.drive.DriveHelper.buildChainForUsers(file_<%=cid%>.getOwners(), ","));
 		globalMap.put("<%=cid%>_FILE_SIZE", file_<%=cid%>.getId());
 		globalMap.put("<%=cid%>_FILE_MIME_TYPE", file_<%=cid%>.getMimeType());
-		globalMap.put("<%=cid%>_FILE_IS_FOLDER", de.jlo.talendcomp.google.drive.DriveHelper.isFolder(file_<%=cid%>));
+		globalMap.put("<%=cid%>_FILE_IS_FOLDER", de.cimt.talendcomp.google.drive.DriveHelper.isFolder(file_<%=cid%>));
 <% } %>	
 <% } // else if ("LIST".equals(mode)) %>
 <% if ("CLIENT".equals(mode) == false && filesRowName != null) { %>
@@ -449,7 +449,7 @@
 		<%=filesRowName%>.FILE_DOWNLOAD_URL = file_<%=cid%>.getDownloadUrl();
 		<%=filesRowName%>.FILE_WEB_CONTENT_LINK = file_<%=cid%>.getWebContentLink();
 		<%=filesRowName%>.FILE_SIZE = file_<%=cid%>.getFileSize();
-		<%=filesRowName%>.FILE_OWNERS = de.jlo.talendcomp.google.drive.DriveHelper.buildChainForUsers(file_<%=cid%>.getOwners(), ",");
-		<%=filesRowName%>.FILE_IS_FOLDER = de.jlo.talendcomp.google.drive.DriveHelper.isFolder(file_<%=cid%>);
+		<%=filesRowName%>.FILE_OWNERS = de.cimt.talendcomp.google.drive.DriveHelper.buildChainForUsers(file_<%=cid%>.getOwners(), ",");
+		<%=filesRowName%>.FILE_IS_FOLDER = de.cimt.talendcomp.google.drive.DriveHelper.isFolder(file_<%=cid%>);
 <% } %>	
 	
