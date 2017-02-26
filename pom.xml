@@ -7,7 +7,7 @@
 	<organization>
 		<name>cimt AG</name>
 	</organization>
-	<version>3.0</version>
+	<version>3.1</version>
 	<repositories>
 		<repository>
 			<id>google-api-services</id>

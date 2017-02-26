@@ -91,12 +91,15 @@
 	boolean overwrite = "true".equals(ElementParameterParser.getValue(node, "__OVERWRITE__"));
 	boolean deleteInFs = "true".equals(ElementParameterParser.getValue(node, "__REMOVE_FROM_LOCAL_FS__"));
 	boolean deleteInDrive = "true".equals(ElementParameterParser.getValue(node, "__REMOVE_FROM_DRIVE__"));
-    List<? extends IConnection> connsFiles = node.getOutgoingConnections("FILES");
+    List<? extends IConnection> connsFiles = node.getOutgoingConnections();
     String filesRowName = null;
+    boolean hasIterate = false;
     if (connsFiles != null && connsFiles.size() > 0) {
     	IConnection connTemp = connsFiles.get(0);
     	if (connTemp.getLineStyle().hasConnectionCategory(IConnectionCategory.DATA)) {
     		filesRowName = connTemp.getName();
+    	} else if (connTemp.getLineStyle().hasConnectionCategory(IConnectionCategory.USE_ITERATE)) {
+    		hasIterate = true;
     	}
     }
     String permOwner = ElementParameterParser.getValue(node, "__PERMISSION_AS_OWNER__");
@@ -439,7 +442,7 @@
 		globalMap.put("<%=cid%>_ERROR_MESSAGE", e.getMessage());
 		throw e;
 	}
-<% if (filesRowName != null) { %>
+<% if (filesRowName != null || hasIterate) { %>
 	for (com.google.api.services.drive.model.File file_<%=cid%> : fileList_<%=cid%>) {	
 		globalMap.put("<%=cid%>_FILE_ID", file_<%=cid%>.getId());
 		globalMap.put("<%=cid%>_FILE_TITLE", file_<%=cid%>.getTitle());

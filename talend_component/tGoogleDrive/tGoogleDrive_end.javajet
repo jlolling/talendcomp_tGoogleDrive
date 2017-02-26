@@ -11,16 +11,19 @@
     CodeGeneratorArgument codeGenArgument = (CodeGeneratorArgument) argument;
     INode node = (INode)codeGenArgument.getArgument();
     String cid = node.getUniqueName(); 
-    List<? extends IConnection> connsFiles = node.getOutgoingConnections("FILES");
+    List<? extends IConnection> connsFiles = node.getOutgoingConnections();
     String filesRowName = null;
+    boolean hasIterate = false;
     if (connsFiles != null && connsFiles.size() > 0) {
     	IConnection connTemp = connsFiles.get(0);
     	if (connTemp.getLineStyle().hasConnectionCategory(IConnectionCategory.DATA)) {
     		filesRowName = connTemp.getName();
+    	} else if (connTemp.getLineStyle().hasConnectionCategory(IConnectionCategory.USE_ITERATE)) {
+    		hasIterate = true;
     	}
     }
     %>
-<%  if (filesRowName != null) { %>	
+<%  if (filesRowName != null || hasIterate) { %>	
 	} // close while from output connection of <%=cid%> 
 	globalMap.put("<%=cid%>_NB_LINE", countFiles_<%=cid%>);
 <%  } %>
