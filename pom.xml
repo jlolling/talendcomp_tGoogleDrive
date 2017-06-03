@@ -1,13 +1,13 @@
 <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
 	xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
 	<modelVersion>4.0.0</modelVersion>
-	<groupId>de.cimt.talendcomp.google</groupId>
-	<artifactId>cimt-talendcomp-google-drive</artifactId>
+	<groupId>de.jlo.talendcomp.google</groupId>
+	<artifactId>jlo-talendcomp-google-drive</artifactId>
 	<name>GoogleDrive component</name>
 	<organization>
-		<name>cimt AG</name>
+		<name>Jan Lolling</name>
 	</organization>
-	<version>3.1</version>
+	<version>3.2</version>
 	<repositories>
 		<repository>
 			<id>google-api-services</id>
@@ -19,6 +19,17 @@
 			<groupId>com.google.apis</groupId>
 			<artifactId>google-api-services-drive</artifactId>
 			<version>v2-rev254-1.22.0</version>
+			<exclusions>
+				<exclusion>
+					<groupId>com.google.guava</groupId>
+					<artifactId>guava-jdk5</artifactId>
+				</exclusion>
+			</exclusions>
+		</dependency>
+		<dependency>
+			<groupId>com.google.guava</groupId>
+			<artifactId>guava</artifactId>
+			<version>20.0</version>
 		</dependency>
 		<dependency>
 			<groupId>com.google.oauth-client</groupId>
@@ -76,13 +87,12 @@
 			<plugin>
 				<groupId>de.cimt.talendcomp</groupId>
 				<artifactId>cimt-talendcomp-maven-plugin</artifactId>
-				<version>1.7</version>
+				<version>1.8</version>
 				<configuration>
 					<componentName>tGoogleDrive</componentName>
 				</configuration>
 				<executions>
 					<execution>
-						<phase>install</phase>
 						<goals>
 							<goal>component</goal>
 						</goals>
