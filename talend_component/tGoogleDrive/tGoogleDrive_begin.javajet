@@ -351,7 +351,7 @@
 			globalMap.put("<%=cid%>_PARENT_FOLDER_ID", de.jlo.talendcomp.google.drive.DriveHelper.getFirstParentId(file_<%=cid%>));
 		}
 <%  if (deleteInFs) { %>
-        java.io.File f = new java.io.File(localUploadFile);
+        java.io.File f = new java.io.File(localFilePath);
 		System.out.println("Delete local source file " + f.getAbsolutePath());
 		f.delete();
 <%  } %>
