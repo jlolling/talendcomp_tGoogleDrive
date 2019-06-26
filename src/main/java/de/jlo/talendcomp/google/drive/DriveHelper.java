@@ -94,6 +94,7 @@ public class DriveHelper {
 	private long innerLoopWaitInterval = 100;
 	private int errorCode = 0;
 	private String errorMessage = null;
+	private boolean useOnlyDriveFileScopeForClientId = false;
 	
 	public static void putIntoCache(String key, DriveHelper client) {
 		clientCache.put(key, client);
@@ -182,7 +183,7 @@ public class DriveHelper {
 				HTTP_TRANSPORT, 
 				JSON_FACTORY, 
 				clientSecrets, 
-				Arrays.asList(DriveScopes.DRIVE, DriveScopes.DRIVE_FILE))
+				(useOnlyDriveFileScopeForClientId ? Arrays.asList(DriveScopes.DRIVE_FILE) : Arrays.asList(DriveScopes.DRIVE, DriveScopes.DRIVE_FILE)))
 			.setDataStoreFactory(fdsf)
 			.setClock(new Clock() {
 				@Override
@@ -1250,6 +1251,14 @@ public class DriveHelper {
 
 	public String getLastHttpStatusMessage() {
 		return errorMessage;
+	}
+
+	public boolean isUseOnlyDriveFileScopeForClientId() {
+		return useOnlyDriveFileScopeForClientId;
+	}
+
+	public void setUseOnlyDriveFileScopeForClientId(boolean useOnlyDriveFileScopeForClientId) {
+		this.useOnlyDriveFileScopeForClientId = useOnlyDriveFileScopeForClientId;
 	}
 
 }

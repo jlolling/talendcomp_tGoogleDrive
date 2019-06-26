@@ -13,14 +13,14 @@ public class TestDriveHelper {
 	public static void main(String[] args) {
 		try {
 //			testMoveFile();
-//			testDownloadById();
+			testDownloadById();
 //			testUpload();
 //    		testDeleteById();
 //			testGetById();
 //			testGetByName();
 //			testCreateFolders();
 //			testList();
-			testPermissions();
+//			testPermissions();
 		} catch (Exception e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
@@ -31,28 +31,20 @@ public class TestDriveHelper {
 	
 	private static DriveHelper getDriverHelper() throws Exception {
 		if (client == null) {
-//			client = getHelperWithPersonalAccount();
-			client = getHelperWithServiceAccountMobile();
+			client = getHelperWithPersonalAccount();
+//			client = getHelperWithServiceAccountMobile();
 		}
 		return client;
 	}
 
-	private static DriveHelper getHelperWithServiceAccountMobile() throws Exception {
-		DriveHelper h = new DriveHelper();
-		h.setApplicationName("GATalendComp");
-		h.setAccountEmail("422451649636@developer.gserviceaccount.com");
-		h.setKeyFile("/var/testdata/ga/config/af21f07c84b14af09c18837c5a385f8252cc9439-privatekey.p12");
-		System.out.println("Initialise client...");
-		h.initializeClient();
-		return h;
-	}
-	
 	private static DriveHelper getHelperWithPersonalAccount() throws Exception {
 		DriveHelper h = new DriveHelper();
 		h.setApplicationName("GATalendComp");
 		h.setUseServiceAccount(false);
+		h.setUseApplicationClientID(true);
+		h.setUseOnlyDriveFileScopeForClientId(true);
 		h.setAccountEmail("jan.lolling@gmail.com");
-		h.setClientSecretFile("/Volumes/Data/Talend/testdata/ga/config/client_secret_503880615382-ve9ac3176d2acre79tevkirt0v6pa91v.apps.googleusercontent.com.json");
+		h.setClientSecretFile("/Data/Talend/testdata/ga/config/client_secret_503880615382-a7rop1easl2maqbul8u7arnd42hgiolu.apps.googleusercontent.com.json");
 		System.out.println("Initialise client...");
 		h.initializeClient();
 		return h;
@@ -70,7 +62,7 @@ public class TestDriveHelper {
 	public static void testDownloadById() throws Exception {
 		DriveHelper h = getDriverHelper();
 		System.out.println("Get...");
-		String fileId = "0B1aeMk_qSLEkcVhIRlRIN0tfRGM";
+		String fileId = "0B1aeMk_qSLEkV1VaSGhEYlVXd0U";
 		File f = h.downloadById(fileId, "/Users/jan/Desktop/", null, true);
 		printOut(f);
 		System.out.println("Done.");
@@ -106,7 +98,7 @@ public class TestDriveHelper {
 	public static void testUpload() throws Exception {
 		DriveHelper h = getDriverHelper();
 		System.out.println("Put...");
-		File f = h.upload("/Volumes/Data/Talend/testdata/ga/drive/2008-02-14-REST--JUG-Berlin.pdf", null, null, false, true);
+		File f = h.upload("/Data/Talend/testdata/ga/drive/2008-02-14-REST--JUG-Berlin.pdf", null, null, false, true);
 		h.setPermissionAsWriter("0B58W_P4pAxsEZkxWZ3huc184Z3c", "jan.lolling@gmail.com", false);
 		printOut(f);
 		System.out.println("Done.");
