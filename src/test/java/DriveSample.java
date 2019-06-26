@@ -12,6 +12,12 @@
  * the License.
  */
 
+import java.io.FileOutputStream;
+import java.io.IOException;
+import java.io.InputStreamReader;
+import java.io.OutputStream;
+import java.util.Collections;
+
 import com.google.api.client.auth.oauth2.Credential;
 import com.google.api.client.extensions.java6.auth.oauth2.AuthorizationCodeInstalledApp;
 import com.google.api.client.extensions.jetty.auth.oauth2.LocalServerReceiver;
@@ -31,12 +37,6 @@ import com.google.api.client.util.store.FileDataStoreFactory;
 import com.google.api.services.drive.Drive;
 import com.google.api.services.drive.DriveScopes;
 import com.google.api.services.drive.model.File;
-
-import java.io.FileOutputStream;
-import java.io.IOException;
-import java.io.InputStreamReader;
-import java.io.OutputStream;
-import java.util.Collections;
 
 /**
  * A sample application that runs multiple requests against the Drive API. The requests this sample
@@ -141,11 +141,11 @@ public class DriveSample {
   /** Uploads a file using either resumable or direct media upload. */
   private static File uploadFile(boolean useDirectUpload) throws IOException {
     File fileMetadata = new File();
-    fileMetadata.setTitle(UPLOAD_FILE.getName());
+    fileMetadata.setName(UPLOAD_FILE.getName());
 
     FileContent mediaContent = new FileContent("image/jpeg", UPLOAD_FILE);
 
-    Drive.Files.Insert insert = driveService.files().insert(fileMetadata, mediaContent);
+    Drive.Files.Create insert = driveService.files().create(fileMetadata, mediaContent);
     MediaHttpUploader uploader = insert.getMediaHttpUploader();
     uploader.setDirectUploadEnabled(useDirectUpload);
 //    uploader.setProgressListener(new FileUploadProgressListener());
@@ -155,7 +155,7 @@ public class DriveSample {
   /** Updates the name of the uploaded file to have a "drivetest-" prefix. */
   private static File updateFileWithTestSuffix(String id) throws IOException {
     File fileMetadata = new File();
-    fileMetadata.setTitle("drivetest-" + UPLOAD_FILE.getName());
+    fileMetadata.setName("drivetest-" + UPLOAD_FILE.getName());
 
     Drive.Files.Update update = driveService.files().update(id, fileMetadata);
     return update.execute();
@@ -169,13 +169,13 @@ public class DriveSample {
     if (!parentDir.exists() && !parentDir.mkdirs()) {
       throw new IOException("Unable to create parent directory");
     }
-    OutputStream out = new FileOutputStream(new java.io.File(parentDir, uploadedFile.getTitle()));
+    OutputStream out = new FileOutputStream(new java.io.File(parentDir, uploadedFile.getName()));
 
     MediaHttpDownloader downloader =
         new MediaHttpDownloader(HTTP_TRANSPORT, driveService.getRequestFactory().getInitializer());
     downloader.setDirectDownloadEnabled(useDirectDownload);
 //    downloader.setProgressListener(new FileDownloadProgressListener());
-    downloader.download(new GenericUrl(uploadedFile.getDownloadUrl()), out);
+    downloader.download(new GenericUrl(uploadedFile.getWebContentLink()), out);
   }
 }
 

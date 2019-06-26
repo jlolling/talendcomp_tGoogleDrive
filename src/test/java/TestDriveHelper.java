@@ -1,7 +1,6 @@
 import java.io.IOException;
 
 import com.google.api.services.drive.model.File;
-import com.google.api.services.drive.model.ParentReference;
 
 import de.jlo.talendcomp.google.drive.DriveHelper;
 
@@ -114,25 +113,25 @@ public class TestDriveHelper {
 	}
 
 	private static void printOut(File f) throws IOException {
-		System.out.println("title=" + f.getTitle().replace('\n', ' '));
+		System.out.println("title=" + f.getName().replace('\n', ' '));
 		System.out.println("id=" + f.getId());
 		System.out.println("original file name=" + f.getOriginalFilename());
 		System.out.println("file extension=" + f.getFileExtension());
 //		System.out.println("self link=" + f.getSelfLink());
 //		System.out.println("web content link=" + f.getWebContentLink());
 //		System.out.println("web view link=" + f.getWebViewLink());
-		System.out.println("created at=" + new java.util.Date(f.getCreatedDate().getValue()));
-		System.out.println("file size=" + f.getFileSize());
+		System.out.println("created at=" + new java.util.Date(f.getCreatedTime().getValue()));
+		System.out.println("file size=" + f.getSize());
 //		System.out.println("downloadUrl=" + f.getDownloadUrl());
 		System.out.println("mime.type=" + f.getMimeType());
-		System.out.println("modified at=" + f.getModifiedDate());
+		System.out.println("modified at=" + f.getModifiedTime());
 		System.out.println("owners=" + de.jlo.talendcomp.google.drive.DriveHelper.buildChainForUsers(f.getOwners(), ","));
 		System.out.println("readers=" + de.jlo.talendcomp.google.drive.DriveHelper.buildChainForPermissionReaders(f.getPermissions(), ","));
 		System.out.println("writers=" + de.jlo.talendcomp.google.drive.DriveHelper.buildChainForPermissionWriters(f.getPermissions(), ","));
 		if (f.getParents() != null) {
 			System.out.print("parents=");
-			for (ParentReference r : f.getParents()) {
-				System.out.print(r.getId());
+			for (String r : f.getParents()) {
+				System.out.print(r);
 				System.out.print(";");
 			}
 			System.out.println();

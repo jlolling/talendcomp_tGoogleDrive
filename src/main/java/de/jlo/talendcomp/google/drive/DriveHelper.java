@@ -65,7 +65,6 @@ import com.google.api.services.drive.Drive.Files.Get;
 import com.google.api.services.drive.DriveRequest;
 import com.google.api.services.drive.DriveScopes;
 import com.google.api.services.drive.model.FileList;
-import com.google.api.services.drive.model.ParentReference;
 import com.google.api.services.drive.model.Permission;
 import com.google.api.services.drive.model.User;
 
@@ -287,11 +286,11 @@ public class DriveHelper {
 	private void removeAllParentFolders(com.google.api.services.drive.model.File file, String exceptParentId) throws Exception {
 		checkPrerequisits();
 		if (file.getParents() != null) {
-			for (ParentReference pr : file.getParents()) {
-				if (pr.getId().equals(exceptParentId) == false) {
+			for (String pr : file.getParents()) {
+				if (pr.equals(exceptParentId) == false) {
 					execute(driveService
 						.parents()
-						.delete(file.getId(), pr.getId()));
+						.delete(file.getId(), pr));
 				}
 			}
 		}
@@ -300,8 +299,8 @@ public class DriveHelper {
 	private void insertFileIntoFolder(String folderId, com.google.api.services.drive.model.File file) throws Exception {
 		checkPrerequisits();
 		if (file.getParents() != null) {
-			for (ParentReference pr : file.getParents()) {
-				if (pr.getId().equals(folderId)) {
+			for (String pr : file.getParents()) {
+				if (folderId.equals(pr)) {
 					throw new Exception("File id=" + file.getId() + " has already a parent reference to the folder-Id=" + folderId);
 				}
 			}
@@ -349,7 +348,7 @@ public class DriveHelper {
 		String currentFolderName = pathArray.get(level);
 		List<com.google.api.services.drive.model.File> childFolders = getChildFolders(allFolders, (parent != null ? parent.getId() : null));
 		for (com.google.api.services.drive.model.File folder : childFolders) {
-			if (currentFolderName.equalsIgnoreCase(folder.getTitle())) {
+			if (currentFolderName.equalsIgnoreCase(folder.getName())) {
 				child = folder;
 				break;
 			}
@@ -375,9 +374,9 @@ public class DriveHelper {
 	}
 	
 	public static String getFirstParentId(com.google.api.services.drive.model.File file) {
-		List<ParentReference> parentRefs = file.getParents();
+		List<String> parentRefs = file.getParents();
 		if (parentRefs != null && parentRefs.size() > 0) {
-			return parentRefs.get(0).getId();
+			return parentRefs.get(0);
 		} else {
 			return null;
 		}
@@ -387,13 +386,13 @@ public class DriveHelper {
 		List<com.google.api.services.drive.model.File> children = new ArrayList<com.google.api.services.drive.model.File>();
 		for (com.google.api.services.drive.model.File folder : allFolders) {
 			if (folder.getParents() != null) {
-				for (ParentReference pr : folder.getParents()) {
+				for (String pr : folder.getParents()) {
 					if (parentId != null) {
-						if (pr.getId().equals(parentId)) {
+						if (parentId.equals(pr)) {
 							children.add(folder);
 							break;
 						}
-					} else if (pr.getIsRoot()) {
+					} else if (pr == null) {
 						children.add(folder);
 						break;
 					}
@@ -408,14 +407,12 @@ public class DriveHelper {
 	private com.google.api.services.drive.model.File createFolder(String parentId, String title) throws Exception {
 		checkPrerequisits();
 		com.google.api.services.drive.model.File folder = new com.google.api.services.drive.model.File();
-		folder.setTitle(title);
+		folder.setName(title);
 		folder.setMimeType(FOLDER_MIME_TYPE);
 		if (parentId != null) {
-			ParentReference pr = new ParentReference();
-			pr.setId(parentId);
-			folder.setParents(Arrays.asList(pr));
+			folder.setParents(Arrays.asList(parentId));
 		}
-		return (com.google.api.services.drive.model.File) execute(driveService.files().insert(folder));
+		return (com.google.api.services.drive.model.File) execute(driveService.files().create(folder));
 	}
 		
 	/**
@@ -458,7 +455,7 @@ public class DriveHelper {
 		}
 		com.google.api.services.drive.model.File existingFile = getByName(filePath);
 		if (overwrite == false && existingFile != null) {
-			throw new Exception("File " + existingFile.getTitle() + " already exists in the Drive. File-Id=" + existingFile.getId());
+			throw new Exception("File " + existingFile.getName() + " already exists in the Drive. File-Id=" + existingFile.getId());
 		}
 		if (existingFile == null) {
 			info("Upload new file " + localFile.getAbsolutePath());
@@ -472,17 +469,15 @@ public class DriveHelper {
 				}
 			}
 			com.google.api.services.drive.model.File uploadFile = new com.google.api.services.drive.model.File();
-		    uploadFile.setTitle(title);
+		    uploadFile.setName(title);
 			if (parentId != null) {
-				ParentReference pr = new ParentReference();
-				pr.setId(parentId);
-				uploadFile.setParents(Arrays.asList(pr));
+				uploadFile.setParents(Arrays.asList(parentId));
 			}
 		    String mimeType = getMimeType(localFilePath);
 		    FileContent mediaContent = new FileContent(mimeType, localFile);
-		    Drive.Files.Insert insertRequest = driveService
+		    Drive.Files.Create insertRequest = driveService
 		    		.files()
-		    		.insert(uploadFile, mediaContent);
+		    		.create(uploadFile, mediaContent);
 		    MediaHttpUploader uploader = insertRequest.getMediaHttpUploader();
 		    uploader.setDirectUploadEnabled(false);
 		    uploader.setProgressListener(new MediaHttpUploaderProgressListener() {
@@ -560,10 +555,10 @@ public class DriveHelper {
 		if (newFileName != null && newFileName.trim().isEmpty() == false) {
 			downLoadFilePath = localFolder + newFileName;
 		} else {
-			downLoadFilePath = localFolder + file.getTitle();
+			downLoadFilePath = localFolder + file.getName();
 		}
-		if (file.getDownloadUrl() != null) {
-			downloadByUrl(file.getDownloadUrl(), downLoadFilePath, createDirs);
+		if (file.getWebContentLink() != null) {
+			downloadByUrl(file.getWebContentLink(), downLoadFilePath, createDirs);
 		}
 		return file;
 	}
@@ -878,7 +873,7 @@ public class DriveHelper {
 				if (pattern != null) { // apply the local filter
 					Matcher matcher = null;
 					for (com.google.api.services.drive.model.File file : files.getItems()) {
-						matcher = pattern.matcher(file.getTitle());
+						matcher = pattern.matcher(file.getName());
 						if (matcher.find()) {
 							resultList.add(file);
 						}
@@ -909,7 +904,7 @@ public class DriveHelper {
 						p.setRole(role);
 						execute(driveService
 							.permissions()
-							.insert(fileId, p)
+							.create(fileId, p)
 							.setSendNotificationEmails(sendEmailNotification));
 					}
 				}
