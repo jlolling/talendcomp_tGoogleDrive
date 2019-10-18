@@ -61,7 +61,6 @@ import com.google.api.client.json.jackson2.JacksonFactory;
 import com.google.api.client.util.Clock;
 import com.google.api.client.util.store.FileDataStoreFactory;
 import com.google.api.services.drive.Drive;
-import com.google.api.services.drive.Drive.Files.Get;
 import com.google.api.services.drive.DriveRequest;
 import com.google.api.services.drive.DriveScopes;
 import com.google.api.services.drive.model.FileList;
@@ -275,41 +274,20 @@ public class DriveHelper {
 
 	private com.google.api.services.drive.model.File moveToFolder(com.google.api.services.drive.model.File fileToMove, String newParentId) throws Exception {
 		checkPrerequisits();
-		insertFileIntoFolder(newParentId, fileToMove);
-		removeAllParentFolders(fileToMove, newParentId);
-		Get request = driveService
+		StringBuilder previousParents = new StringBuilder();
+		for (String parent : fileToMove.getParents()) {
+			previousParents.append(parent);
+			previousParents.append(',');
+		}
+		// Move the file to the new folder
+		com.google.api.services.drive.model.File updatedFile = driveService
 				.files()
-				.get(fileToMove.getId());
-		return (com.google.api.services.drive.model.File) execute(request);
-	}
-	
-	private void removeAllParentFolders(com.google.api.services.drive.model.File file, String exceptParentId) throws Exception {
-		checkPrerequisits();
-		if (file.getParents() != null) {
-			for (String pr : file.getParents()) {
-				if (pr.equals(exceptParentId) == false) {
-					execute(driveService
-						.parents()
-						.delete(file.getId(), pr));
-				}
-			}
-		}
-	}
-	
-	private void insertFileIntoFolder(String folderId, com.google.api.services.drive.model.File file) throws Exception {
-		checkPrerequisits();
-		if (file.getParents() != null) {
-			for (String pr : file.getParents()) {
-				if (folderId.equals(pr)) {
-					throw new Exception("File id=" + file.getId() + " has already a parent reference to the folder-Id=" + folderId);
-				}
-			}
-		}
-		ParentReference newParent = new ParentReference();
-		newParent.setId(folderId);
-		execute(driveService
-			.parents()
-			.insert(file.getId(), newParent));
+				.update(fileToMove.getId(), null)
+				.setAddParents(newParentId)
+				.setRemoveParents(previousParents.toString())
+				.setFields("id, parents")
+				.execute();
+		return updatedFile;
 	}
 	
 	/**
@@ -872,14 +850,14 @@ public class DriveHelper {
 				FileList files = (FileList) execute(request);
 				if (pattern != null) { // apply the local filter
 					Matcher matcher = null;
-					for (com.google.api.services.drive.model.File file : files.getItems()) {
+					for (com.google.api.services.drive.model.File file : files.getFiles()) {
 						matcher = pattern.matcher(file.getName());
 						if (matcher.find()) {
 							resultList.add(file);
 						}
 					}
 				} else {
-					resultList.addAll(files.getItems());
+					resultList.addAll(files.getFiles());
 				}
 				request.setPageToken(files.getNextPageToken());
 			} catch (IOException e) {
@@ -900,12 +878,12 @@ public class DriveHelper {
 					if (email != null && email.trim().isEmpty() == false) {
 						Permission p = new Permission();
 						p.setType("user");
-						p.setValue(email);
+						p.setEmailAddress(email);
 						p.setRole(role);
 						execute(driveService
 							.permissions()
 							.create(fileId, p)
-							.setSendNotificationEmails(sendEmailNotification));
+							.setSendNotificationEmail(sendEmailNotification));
 					}
 				}
 			} else {
