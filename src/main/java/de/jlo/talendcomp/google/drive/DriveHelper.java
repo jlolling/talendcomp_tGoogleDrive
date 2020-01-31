@@ -18,6 +18,7 @@ package de.jlo.talendcomp.google.drive;
 import java.io.BufferedOutputStream;
 import java.io.BufferedReader;
 import java.io.File;
+import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.FileReader;
 import java.io.IOException;
@@ -66,6 +67,7 @@ import com.google.api.services.drive.DriveScopes;
 import com.google.api.services.drive.model.FileList;
 import com.google.api.services.drive.model.Permission;
 import com.google.api.services.drive.model.User;
+import com.google.auth.oauth2.GoogleCredentials;
 
 public class DriveHelper {
 	
@@ -129,22 +131,28 @@ public class DriveHelper {
 		if (accountEmail == null || accountEmail.isEmpty()) {
 			throw new Exception("account email cannot be null or empty");
 		}
-		// Authorization.
-		return new GoogleCredential.Builder()
-				.setTransport(HTTP_TRANSPORT)
-				.setJsonFactory(JSON_FACTORY)
-				.setServiceAccountId(accountEmail)
-				.setServiceAccountScopes(Arrays.asList(DriveScopes.DRIVE, DriveScopes.DRIVE_FILE))
-				.setServiceAccountPrivateKeyFromP12File(keyFile)
-				.setClock(new Clock() {
-					@Override
-					public long currentTimeMillis() {
-						// we must be sure, that we are always in the past from Googles point of view
-						// otherwise we get an "invalid_grant" error
-						return System.currentTimeMillis() - timeMillisOffsetToPast;
-					}
-				})
-				.build();
+		if (keyFile.getName().toLowerCase().endsWith(".p12")) {
+			// Authorization.
+			return new GoogleCredential.Builder()
+					.setTransport(HTTP_TRANSPORT)
+					.setJsonFactory(JSON_FACTORY)
+					.setServiceAccountId(accountEmail)
+					.setServiceAccountScopes(Arrays.asList(DriveScopes.DRIVE, DriveScopes.DRIVE_FILE))
+					.setServiceAccountPrivateKeyFromP12File(keyFile)
+					.setClock(new Clock() {
+						@Override
+						public long currentTimeMillis() {
+							// we must be sure, that we are always in the past from Googles point of view
+							// otherwise we get an "invalid_grant" error
+							return System.currentTimeMillis() - timeMillisOffsetToPast;
+						}
+					})
+					.build();
+		} else if (keyFile.getName().toLowerCase().endsWith(".json")) {
+			GoogleCredentials credentials = GoogleCredentials.fromStream(new FileInputStream(keyFile));
+			credentials.refreshIfExpired();			
+			
+		}
 	}
 
 	private Credential authorizeWithClientSecret() throws Exception {
