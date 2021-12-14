@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 
 <COMPONENT> 
-  <HEADER PLATEFORM="ALL" SERIAL="" VERSION="3.4" STATUS="PROD" COMPATIBILITY="ALL" AUTHOR="Jan Lolling" RELEASE_DATE="20180225" STARTABLE="true" HAS_CONDITIONAL_OUTPUTS="true"> 
+  <HEADER PLATEFORM="ALL" SERIAL="" VERSION="3.5" STATUS="PROD" COMPATIBILITY="ALL" AUTHOR="Jan Lolling" RELEASE_DATE="20211214" STARTABLE="true" HAS_CONDITIONAL_OUTPUTS="true"> 
     <SIGNATURE/> 
   </HEADER>  
   <FAMILIES> 
@@ -125,13 +125,13 @@
     <PARAMETER FIELD="CHECK" NAME="THREAD_SAVE" NUM_ROW="40" SHOW_IF="(KEEP_CLIENT == 'true') and (USE_EXISTING_CLIENT == 'false')"> 
       <DEFAULT>true</DEFAULT> 
     </PARAMETER>  
-    <PARAMETER NAME="RELEASE_LABEL_20180225" FIELD="LABEL" COLOR="0;0;0" NUM_ROW="900">
-      <DEFAULT>Release: 3.4 build at: 20180225</DEFAULT>
+    <PARAMETER NAME="RELEASE_LABEL_20211214" FIELD="LABEL" COLOR="0;0;0" NUM_ROW="900">
+      <DEFAULT>Release: 3.5 build at: 20211214</DEFAULT>
     </PARAMETER>
   </ADVANCED_PARAMETERS>  
   <CODEGENERATION> 
     <IMPORTS> 
-      <IMPORT NAME="jlo-talendcomp-google-drive" MODULE="jlo-talendcomp-google-drive-3.4.jar" REQUIRED="true"/>
+      <IMPORT NAME="jlo-talendcomp-google-drive" MODULE="jlo-talendcomp-google-drive-3.5.jar" REQUIRED="true"/>
       <IMPORT NAME="google-api-services-drive-v2-rev289" MODULE="google-api-services-drive-v2-rev289-1.23.0.jar" REQUIRED="true"/>
       <IMPORT NAME="google-api-client" MODULE="google-api-client-1.23.0.jar" REQUIRED="true"/>
       <IMPORT NAME="google-oauth-client" MODULE="google-oauth-client-1.23.0.jar" REQUIRED="true"/>

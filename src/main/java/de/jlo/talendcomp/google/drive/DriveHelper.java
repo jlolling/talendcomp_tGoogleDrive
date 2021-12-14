@@ -36,7 +36,7 @@ import java.util.StringTokenizer;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-import org.apache.log4j.Logger;
+import org.apache.commons.logging.Log;
 
 import com.google.api.client.auth.oauth2.Credential;
 import com.google.api.client.extensions.java6.auth.oauth2.AuthorizationCodeInstalledApp;
@@ -71,7 +71,6 @@ import com.google.api.services.drive.model.User;
 
 public class DriveHelper {
 	
-	private Logger logger = null;
 	private static final Map<String, DriveHelper> clientCache = new HashMap<String, DriveHelper>();
 	private final HttpTransport HTTP_TRANSPORT = new NetHttpTransport();
 	private final JsonFactory JSON_FACTORY = new JacksonFactory();
@@ -1154,27 +1153,15 @@ public class DriveHelper {
 	}
 
 	public void info(String message) {
-		if (logger != null) {
-			logger.info(message);
-		} else {
-			System.out.println("INFO:" + message);
-		}
+		System.out.println("INFO:" + message);
 	}
 	
 	public void debug(String message) {
-		if (logger != null) {
-			logger.debug(message);
-		} else {
-			System.out.println("DEBUG:" + message);
-		}
+		System.out.println("DEBUG:" + message);
 	}
 
 	public void warn(String message) {
-		if (logger != null) {
-			logger.warn(message);
-		} else {
-			System.err.println("WARN:" + message);
-		}
+		System.err.println("WARN:" + message);
 	}
 	
 	public void error(String message) {
@@ -1182,19 +1169,7 @@ public class DriveHelper {
 	}
 
 	public void error(String message, Exception e) {
-		if (logger != null) {
-			if (e != null) {
-				logger.error(message, e);
-			} else {
-				logger.error(message);
-			}
-		} else {
-			System.err.println("ERROR:" + message);
-		}
-	}
-
-	public void setLogger(Logger logger) {
-		this.logger = logger;
+		System.err.println("ERROR:" + message);
 	}
 
 	/**

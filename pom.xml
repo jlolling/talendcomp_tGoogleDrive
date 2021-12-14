@@ -1,4 +1,5 @@
-<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
 	xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
 	<modelVersion>4.0.0</modelVersion>
 	<groupId>de.jlo.talendcomp.google</groupId>
@@ -7,7 +8,7 @@
 	<organization>
 		<name>Jan Lolling</name>
 	</organization>
-	<version>3.4</version>
+	<version>3.5</version>
 	<repositories>
 		<repository>
 			<id>google-api-services</id>
@@ -41,37 +42,31 @@
 			<groupId>com.google.http-client</groupId>
 			<artifactId>google-http-client-jackson2</artifactId>
 			<version>1.23.0</version>
-	      <exclusions>
-	        <exclusion>
-	          <artifactId>jackson-core</artifactId>
-	          <groupId>com.fasterxml.jackson.core</groupId>
-	        </exclusion>
-	        <exclusion>
-	        	<groupId>org.apache.httpcomponents</groupId>
-	        	<artifactId>httpcore</artifactId>
-	        </exclusion>
-	        <exclusion>
-	        	<groupId>org.apache.httpcomponents</groupId>
-	        	<artifactId>httpclient</artifactId>
-	        </exclusion>
-	      </exclusions>
+			<exclusions>
+				<exclusion>
+					<artifactId>jackson-core</artifactId>
+					<groupId>com.fasterxml.jackson.core</groupId>
+				</exclusion>
+				<exclusion>
+					<groupId>org.apache.httpcomponents</groupId>
+					<artifactId>httpcore</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>org.apache.httpcomponents</groupId>
+					<artifactId>httpclient</artifactId>
+				</exclusion>
+			</exclusions>
 		</dependency>
-	    <dependency>
-	      <groupId>com.fasterxml.jackson.core</groupId>
-	      <artifactId>jackson-databind</artifactId>
-	      <version>2.8.6</version>
-	      <scope>compile</scope>
-	    </dependency>
-   		<dependency>
+		<dependency>
+			<groupId>com.fasterxml.jackson.core</groupId>
+			<artifactId>jackson-databind</artifactId>
+			<version>2.8.6</version>
+			<scope>compile</scope>
+		</dependency>
+		<dependency>
 			<groupId>org.apache.httpcomponents</groupId>
 			<artifactId>httpclient</artifactId>
 			<version>4.3.6</version>
-		</dependency>
-		<dependency>
-			<groupId>log4j</groupId>
-			<artifactId>log4j</artifactId>
-			<version>1.2.17</version>
-			<scope>provided</scope>
 		</dependency>
 	</dependencies>
 	<build>
